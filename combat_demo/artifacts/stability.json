@@ -1,0 +1,15 @@
+{
+  "title_wall_seconds": 1200.1486208999995,
+  "frames": 61863,
+  "renderer": "SDL dummy / real Pygame draws",
+  "working_set_mib": [
+    70.46875,
+    70.54296875,
+    70.546875,
+    70.546875,
+    70.546875,
+    70.546875
+  ],
+  "growth_mib": 0.078125,
+  "pass": true
+}

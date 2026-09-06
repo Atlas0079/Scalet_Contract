@@ -1,0 +1,14 @@
+test_T21_hover_branches_and_edge_avoidance (test_interface.InterfaceTests.test_T21_hover_branches_and_edge_avoidance) ... ok
+test_T22_personal_inventory_keeps_selection (test_interface.InterfaceTests.test_T22_personal_inventory_keeps_selection) ... ok
+test_T23_outside_click_does_not_issue_move (test_interface.InterfaceTests.test_T23_outside_click_does_not_issue_move) ... ok
+test_T25_selection_change_cancels_targeting (test_interface.InterfaceTests.test_T25_selection_change_cancels_targeting) ... ok
+test_T26_inventory_and_breach_menus_are_capability_driven (test_interface.InterfaceTests.test_T26_inventory_and_breach_menus_are_capability_driven) ... ok
+test_T29_effects_do_not_change_visibility (test_interface.InterfaceTests.test_T29_effects_do_not_change_visibility) ... ok
+test_T30_paused_fx_freezes_but_tool_works (test_interface.InterfaceTests.test_T30_paused_fx_freezes_but_tool_works) ... ok
+test_T32_minimum_resolution_commit_button_visible (test_interface.InterfaceTests.test_T32_minimum_resolution_commit_button_visible) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.399s
+
+OK
+pygame-ce 2.5.7 (SDL 2.32.10, Python 3.12.14)

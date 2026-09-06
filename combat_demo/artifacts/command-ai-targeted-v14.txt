@@ -1,0 +1,31 @@
+test_cancel_is_scoped_and_successors_cannot_run (test_command_ai.CommandAITests.test_cancel_is_scoped_and_successors_cannot_run) ... ok
+test_enemy_turns_from_unknown_attack (test_command_ai.CommandAITests.test_enemy_turns_from_unknown_attack) ... ok
+test_flash_release_survives_suspend_and_retry_without_duplicate (test_command_ai.CommandAITests.test_flash_release_survives_suspend_and_retry_without_duplicate) ... ok
+test_hit_and_near_miss_are_wired_from_shooting (test_command_ai.CommandAITests.test_hit_and_near_miss_are_wired_from_shooting) ... ok
+test_hold_fire_turns_to_unseen_attack_and_stays_suspended (test_command_ai.CommandAITests.test_hold_fire_turns_to_unseen_attack_and_stays_suspended) ... ok
+test_interrupted_automatic_reload_does_not_suspend_known_combat (test_command_ai.CommandAITests.test_interrupted_automatic_reload_does_not_suspend_known_combat) ... ok
+test_invalid_batch_item_keeps_macro_intact (test_command_ai.CommandAITests.test_invalid_batch_item_keeps_macro_intact) ... ok
+test_invalid_takeover_preserves_group_and_resources (test_command_ai.CommandAITests.test_invalid_takeover_preserves_group_and_resources) ... ok
+test_known_attack_is_plan_internal (test_command_ai.CommandAITests.test_known_attack_is_plan_internal) ... ok
+test_ordinary_arrival_does_not_reset_north (test_command_ai.CommandAITests.test_ordinary_arrival_does_not_reset_north) ... ok
+test_real_unseen_shot_triggers_turn_before_visual_identification (test_command_ai.CommandAITests.test_real_unseen_shot_triggers_turn_before_visual_identification) ... ok
+test_removing_future_macro_does_not_stop_its_predecessor (test_command_ai.CommandAITests.test_removing_future_macro_does_not_stop_its_predecessor) ... ok
+test_same_sound_refreshes_both_sides_and_preserves_enemy_path (test_command_ai.CommandAITests.test_same_sound_refreshes_both_sides_and_preserves_enemy_path) ... ok
+test_segment_angles_apply_during_each_move_and_share_turn_budget (test_command_ai.CommandAITests.test_segment_angles_apply_during_each_move_and_share_turn_budget) ... ok
+test_shift_takeover_cancels_group_and_releases_reservation (test_command_ai.CommandAITests.test_shift_takeover_cancels_group_and_releases_reservation) ... ok
+test_shift_takeover_validates_from_current_position (test_command_ai.CommandAITests.test_shift_takeover_validates_from_current_position) ... ok
+test_sound_does_not_change_macro_assignment_or_route (test_command_ai.CommandAITests.test_sound_does_not_change_macro_assignment_or_route) ... ok
+test_sound_turns_idle_but_not_explicit_guard (test_command_ai.CommandAITests.test_sound_turns_idle_but_not_explicit_guard) ... ok
+test_suspension_stops_all_unfinished_actions_and_keeps_reservation (test_command_ai.CommandAITests.test_suspension_stops_all_unfinished_actions_and_keeps_reservation) ... ok
+test_sync_suspension_revokes_pending_release (test_command_ai.CommandAITests.test_sync_suspension_revokes_pending_release) ... ok
+test_unknown_attack_suspends_group_without_revealing_source (test_command_ai.CommandAITests.test_unknown_attack_suspends_group_without_revealing_source) ... ok
+test_crossing_object_and_dragging_back_do_not_change_target (test_command_ai.DragInterfaceTests.test_crossing_object_and_dragging_back_do_not_change_target) ... ok
+test_drag_cancel_outside_escape_and_resize (test_command_ai.DragInterfaceTests.test_drag_cancel_outside_escape_and_resize) ... ok
+test_shift_is_captured_on_press (test_command_ai.DragInterfaceTests.test_shift_is_captured_on_press) ... ok
+test_threshold_and_commit_only_on_release (test_command_ai.DragInterfaceTests.test_threshold_and_commit_only_on_release) ... ok
+
+----------------------------------------------------------------------
+Ran 25 tests in 3.143s
+
+OK
+pygame-ce 2.5.7 (SDL 2.32.10, Python 3.12.14)

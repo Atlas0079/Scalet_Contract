@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from .actor import Actor, PeekDirection
 from .geometry import Vec2
-from .map import GridMap, WallKind
+from .map import GridMap
 
 
 PEEK_OFFSETS: dict[PeekDirection, Vec2] = {
@@ -53,9 +53,12 @@ def combat_position_for(
 def hard_cover_directions(grid: GridMap, cell: tuple[int, int]) -> set[PeekDirection]:
     result: set[PeekDirection] = set()
     for direction in PEEK_DIRECTIONS:
-        wall = grid.wall_at(cell, direction.value)
-        if wall in (WallKind.FULL, WallKind.DOOR_CLOSED):
+        feature = grid.edge_feature_at(cell, direction.value)
+        if feature is not None and (feature.blocks_sight or feature.cover_value >= 0.75 or feature.blocks_movement):
             result.add(direction)
+    feature = grid.cell_feature_at(cell)
+    if feature is not None and (feature.blocks_sight or feature.cover_value >= 0.75 or feature.blocks_movement):
+        result.update(PEEK_DIRECTIONS)
     return result
 
 

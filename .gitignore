@@ -9,3 +9,6 @@ env/
 .env
 .DS_Store
 Thumbs.db
+build/
+release/
+combat_demo/assets/NotoSansSC-Variable.ttf

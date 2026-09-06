@@ -1,0 +1,5 @@
+A {'time': 0.0, 'room': 'R', 'method': 'direct', 'error': None}
+A {'time': 35.1, 'room': 'O', 'method': 'flash', 'error': None}
+A {'time': 60.7, 'blocked': '成员阵亡，请继续或取消', 'room': 'O'}
+A {'time': 63.07, 'blocked': '成员阵亡，请继续或取消', 'room': 'O'}
+{'config': 'A', 'variant': 1, 'time': 147.53333333334288, 'winner': 'blue', 'alive': [], 'enemies': 7, 'stats': {'rounds': 77, 'friendly_hits': 0, 'friendly_stuns': 0, 'items': {'flashbang': 1}}}

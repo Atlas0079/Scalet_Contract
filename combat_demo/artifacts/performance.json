@@ -1,0 +1,20 @@
+{
+  "os": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.14",
+  "pygame": "2.5.7",
+  "renderer": "SDL dummy, CPU rendering; display present latency excluded",
+  "resolution": [
+    1440,
+    900
+  ],
+  "effects": "standard",
+  "config": "A",
+  "speed": 1,
+  "warmup_seconds": 10,
+  "sample_seconds": 119.99442450000788,
+  "frames": 7208,
+  "mean_frame_ms": 16.647395185905644,
+  "p95_frame_ms": 17.571599993971176,
+  "discarded_simulation_seconds": 0.05,
+  "pass": true
+}

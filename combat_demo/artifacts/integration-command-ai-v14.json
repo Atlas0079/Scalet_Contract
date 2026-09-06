@@ -1,0 +1,167 @@
+{
+  "config": "A",
+  "variant": 1,
+  "time": 147.53333333334288,
+  "winner": "blue",
+  "alive": [],
+  "enemies": 7,
+  "stats": {
+    "rounds": 77,
+    "friendly_hits": 0,
+    "friendly_stuns": 0,
+    "items": {
+      "flashbang": 1
+    }
+  },
+  "sources": {
+    "combat_demo\\simulation\\actor.py": "99b32f0367434360b81bac7a9a45a2d44e8897e22b294ca06cc610e6029f599d",
+    "combat_demo\\simulation\\body.py": "72bc09e867d610b761d22b4de5fd18983beb7c3b79b23a7232c1a5df3c3cfcae",
+    "combat_demo\\simulation\\combat.py": "1ceaa7f1e3b62defd6a753ca2f12f239395053e592c86f154e5d4c2d431f987c",
+    "combat_demo\\simulation\\commands.py": "90ca9251f7add884df5dfe00c102c0de6d60fd09bdf7ccae42c6916694a3ef33",
+    "combat_demo\\simulation\\geometry.py": "fea5a0ce25a90eda61372ba5685fb2fe697a8e80c80952359860bf82e52fdc1d",
+    "combat_demo\\simulation\\items.py": "58ba9fcca9b64e0c5587cda52a38569a2212007942b5d84532416e1808053336",
+    "combat_demo\\simulation\\map.py": "4c67824248eda6c97e9b5c00830329680ef98af897aaae429aa49a9c58fba3aa",
+    "combat_demo\\simulation\\mission.py": "058ea3b954c633d1a2851477f432db38607903d01340a82a72f700fa55bdf28f",
+    "combat_demo\\simulation\\movement.py": "da92c8dd0a58d7d593c40d3a2d1495043d7fbdc8f5995e0d53719965c1c2265c",
+    "combat_demo\\simulation\\orders.py": "461f6a6c80df20834105c773258b0d540080dd5a11e03828ab5d3be7b5414f66",
+    "combat_demo\\simulation\\perception.py": "cc064142b606059b63e68620b5c6667f533386df15f89306b574b73e5fb916d8",
+    "combat_demo\\simulation\\pose.py": "4042abc8695db3f7839f51b8ac9e53c73f2eb7acbe6ab496b44dae27c6ec56ca",
+    "combat_demo\\simulation\\scenarios.py": "78462d13c927e2ea8bb0f00b551d984fa825c64752608fe5d9bb04a7d0c1c31b",
+    "combat_demo\\simulation\\weapon.py": "f4d02d0c3aa8ae3b7a9ee1fc2bf794ee5d6f5c5a78f8f20390cc153b8f32fbb0",
+    "combat_demo\\simulation\\world.py": "26c7b814306ecd3b6643ba90a9c18088f679bdcaf05e7908533a5b76305ff31a",
+    "combat_demo\\simulation\\world_commands.py": "3d4a2e0ae7d258518bbe6f2554aa27f1eff5a80ef37898bbe6093de2c520cad7",
+    "combat_demo\\simulation\\__init__.py": "b00355a0163f3e61ebb772e377ca0b75b42b154e43fffb64e010a6c076c3befa"
+  },
+  "events": [
+    [
+      0.0,
+      "2 3 4 1：直接突入 · 接待室"
+    ],
+    [
+      6.583333333333315,
+      "发现敌人 · 空格暂停，逐人调整行动"
+    ],
+    [
+      35.09999999999929,
+      "直接突入 · 接待室 · 完成"
+    ],
+    [
+      35.09999999999929,
+      "2 3 4 1：使用闪光弹突入 · 办公室"
+    ],
+    [
+      60.01666666666454,
+      "2 侧翼 阵亡"
+    ],
+    [
+      63.06666666666437,
+      "3 支援 阵亡"
+    ],
+    [
+      65.46666666666424,
+      "4 后卫 阵亡"
+    ],
+    [
+      65.46666666666424,
+      "行动 2 已取消"
+    ],
+    [
+      65.46666666666424,
+      "1：定点警戒"
+    ],
+    [
+      71.11666666666392,
+      "1：定点警戒"
+    ],
+    [
+      74.68333333333038,
+      "1：定点警戒"
+    ],
+    [
+      80.83333333333003,
+      "1：定点警戒"
+    ],
+    [
+      85.94999999999641,
+      "1：定点警戒"
+    ],
+    [
+      89.51666666666287,
+      "1：定点警戒"
+    ],
+    [
+      104.44999999999536,
+      "1：定点警戒"
+    ],
+    [
+      106.46666666666191,
+      "1：定点警戒"
+    ],
+    [
+      113.64999999999483,
+      "1：定点警戒"
+    ],
+    [
+      119.28333333332785,
+      "1：定点警戒"
+    ],
+    [
+      121.2999999999944,
+      "1：踹开 · 仓库"
+    ],
+    [
+      138.2166666666688,
+      "踹开 · 仓库 · 完成"
+    ],
+    [
+      138.2166666666688,
+      "1：定点警戒"
+    ],
+    [
+      147.53333333334288,
+      "1 先锋 阵亡"
+    ],
+    [
+      147.53333333334288,
+      "任务失败 · 小队全灭"
+    ]
+  ],
+  "commands": [
+    {
+      "time": 0.0,
+      "room": "R",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 35.1,
+      "room": "O",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 60.7,
+      "blocked": "成员阵亡，请继续或取消",
+      "room": "O"
+    },
+    {
+      "time": 63.07,
+      "blocked": "成员阵亡，请继续或取消",
+      "room": "O"
+    },
+    {
+      "time": 147.53,
+      "winner": "blue",
+      "alive": [],
+      "enemies": 7,
+      "stats": {
+        "rounds": 77,
+        "friendly_hits": 0,
+        "friendly_stuns": 0,
+        "items": {
+          "flashbang": 1
+        }
+      }
+    }
+  ]
+}

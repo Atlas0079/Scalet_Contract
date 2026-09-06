@@ -1,0 +1,166 @@
+{
+  "A": [
+    {
+      "time": 0.0,
+      "room": "R",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 33.47,
+      "room": "O",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 71.12,
+      "room": "A",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 105.0,
+      "room": "W",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 136.52,
+      "blocked": "成员改变，请继续或取消",
+      "room": "W"
+    },
+    {
+      "time": 139.25,
+      "blocked": "成员改变，请继续或取消",
+      "room": "W"
+    },
+    {
+      "time": 357.03,
+      "winner": "blue",
+      "alive": [],
+      "enemies": 3,
+      "stats": {
+        "rounds": 67,
+        "friendly_hits": 0,
+        "friendly_stuns": 0,
+        "items": {
+          "flashbang": 3
+        }
+      }
+    }
+  ],
+  "B": [
+    {
+      "time": 0.0,
+      "room": "R",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 31.02,
+      "room": "O",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 67.07,
+      "room": "A",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 101.43,
+      "room": "W",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 131.27,
+      "blocked": "成员改变，请继续或取消",
+      "room": "W"
+    },
+    {
+      "time": 151.78,
+      "room": "L",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 165.1,
+      "blocked": "成员改变，请继续或取消",
+      "room": "L"
+    },
+    {
+      "time": 191.48,
+      "room": "U",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 230.57,
+      "room": "N",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 551.4,
+      "winner": "red",
+      "alive": [
+        1
+      ],
+      "enemies": 0,
+      "stats": {
+        "rounds": 114,
+        "friendly_hits": 0,
+        "friendly_stuns": 1,
+        "items": {
+          "flashbang": 4
+        }
+      }
+    }
+  ],
+  "C": [
+    {
+      "time": 0.0,
+      "room": "R",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 32.85,
+      "blocked": "成员改变，请继续或取消",
+      "room": "R"
+    },
+    {
+      "time": 34.2,
+      "blocked": "成员改变，请继续或取消",
+      "room": "R"
+    },
+    {
+      "time": 54.08,
+      "room": "O",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 89.42,
+      "room": "A",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 321.72,
+      "winner": "blue",
+      "alive": [],
+      "enemies": 2,
+      "stats": {
+        "rounds": 78,
+        "friendly_hits": 0,
+        "friendly_stuns": 0,
+        "items": {
+          "flashbang": 2
+        }
+      }
+    }
+  ]
+}

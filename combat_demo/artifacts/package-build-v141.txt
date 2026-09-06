@@ -1,0 +1,71 @@
+141 INFO: PyInstaller: 6.19.0, contrib hooks: 2026.7
+141 INFO: Python: 3.12.14
+195 INFO: Platform: Windows-11-10.0.26200-SP0
+195 INFO: Python environment: C:\MyResearch\Scarlet Contract\.venv
+199 INFO: Module search paths (PYTHONPATH):
+['C:\\MyResearch\\Scarlet Contract',
+ 'C:\\Users\\29483\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python312.zip',
+ 'C:\\Users\\29483\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\DLLs',
+ 'C:\\Users\\29483\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\Lib',
+ 'C:\\Users\\29483\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python',
+ 'C:\\MyResearch\\Scarlet Contract\\.venv',
+ 'C:\\MyResearch\\Scarlet Contract\\.venv\\Lib\\site-packages',
+ 'C:\\MyResearch\\Scarlet Contract\\combat_demo']
+pygame-ce 2.5.7 (SDL 2.32.10, Python 3.12.14)
+561 INFO: Appending 'datas' from .spec
+561 INFO: checking Analysis
+565 INFO: Building because excludes changed
+565 INFO: Looking for Python shared library...
+566 INFO: Using Python shared library: C:\Users\29483\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python312.dll
+566 INFO: Running Analysis Analysis-00.toc
+566 INFO: Target bytecode optimization level: 0
+566 INFO: Initializing module dependency graph...
+566 INFO: Initializing module graph hook caches...
+577 INFO: Analyzing modules for base_library.zip ...
+1627 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\MyResearch\\Scarlet Contract\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2771 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\MyResearch\\Scarlet Contract\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+3806 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\MyResearch\\Scarlet Contract\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+4131 INFO: Caching module dependency graph...
+4166 INFO: Analyzing C:\MyResearch\Scarlet Contract\combat_demo\main.py
+4177 INFO: Processing standard module hook 'hook-pygame.py' from 'C:\\MyResearch\\Scarlet Contract\\.venv\\Lib\\site-packages\\pygame\\__pyinstaller'
+4260 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\MyResearch\\Scarlet Contract\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+4317 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\MyResearch\\Scarlet Contract\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+4320 INFO: SetuptoolsInfo: initializing cached setuptools info...
+5036 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\MyResearch\\Scarlet Contract\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+5107 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\MyResearch\\Scarlet Contract\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+5389 INFO: Processing module hooks (post-graph stage)...
+5395 INFO: Performing binary vs. data reclassification (35 entries)
+5409 INFO: Looking for ctypes DLLs
+5411 INFO: Analyzing run-time hooks ...
+5413 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\MyResearch\\Scarlet Contract\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+5420 INFO: Creating base_library.zip...
+5441 INFO: Looking for dynamic libraries
+pygame-ce 2.5.7 (SDL 2.32.10, Python 3.12.14)
+5620 INFO: Extra DLL search directories (AddDllDirectory): ['C:\\MyResearch\\Scarlet Contract\\.venv\\Lib\\site-packages\\pygame']
+5620 INFO: Extra DLL search directories (PATH): []
+6175 INFO: Warnings written to C:\MyResearch\Scarlet Contract\build\ScarletContract\warn-ScarletContract.txt
+6193 INFO: Graph cross-reference written to C:\MyResearch\Scarlet Contract\build\ScarletContract\xref-ScarletContract.html
+6209 INFO: checking PYZ
+6214 INFO: Building because C:\MyResearch\Scarlet Contract\combat_demo\rendering\pygame_view.py changed
+6214 INFO: Building PYZ (ZlibArchive) C:\MyResearch\Scarlet Contract\build\ScarletContract\PYZ-00.pyz
+6364 INFO: Building PYZ (ZlibArchive) C:\MyResearch\Scarlet Contract\build\ScarletContract\PYZ-00.pyz completed successfully.
+6369 INFO: checking PKG
+6369 INFO: Building because C:\MyResearch\Scarlet Contract\build\ScarletContract\PYZ-00.pyz changed
+6369 INFO: Building PKG (CArchive) ScarletContract.pkg
+6381 INFO: Building PKG (CArchive) ScarletContract.pkg completed successfully.
+6382 INFO: Bootloader C:\MyResearch\Scarlet Contract\.venv\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+6382 INFO: checking EXE
+6382 INFO: Rebuilding EXE-00.toc because pkg is more recent
+6382 INFO: Building EXE from EXE-00.toc
+6383 INFO: Copying bootloader EXE to C:\MyResearch\Scarlet Contract\build\ScarletContract\ScarletContract.exe
+6387 INFO: Copying icon to EXE
+6390 INFO: Copying 0 resources to EXE
+6390 INFO: Embedding manifest in EXE
+6393 INFO: Appending PKG archive to EXE
+6395 INFO: Fixing EXE headers
+6455 INFO: Building EXE from EXE-00.toc completed successfully.
+6457 INFO: checking COLLECT
+6459 INFO: Building COLLECT COLLECT-00.toc
+6610 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+6613 INFO: Build complete! The results are available in: C:\MyResearch\Scarlet Contract\release\v1.4.1
+pygame-ce 2.5.7 (SDL 2.32.10, Python 3.12.14)

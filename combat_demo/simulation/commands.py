@@ -27,3 +27,8 @@ class ActorCommand:
     action_type: ActionType | None = None
     duration: float | None = None
     intent_type: IntentType | None = None
+    door_id: str | None = None
+    item_id: str | None = None
+    part_id: str | None = None
+    owner_token: str | None = None
+    path: tuple[tuple[int, int], ...] | None = None

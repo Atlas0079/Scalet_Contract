@@ -1,0 +1,72 @@
+{
+  "B": [
+    {
+      "time": 0.0,
+      "room": "R",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 30.02,
+      "room": "O",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 68.58,
+      "room": "A",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 108.48,
+      "room": "W",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 160.5,
+      "room": "L",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 199.52,
+      "room": "U",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 238.55,
+      "room": "N",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 281.68,
+      "room": "M",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 899.9,
+      "winner": null,
+      "alive": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "enemies": 1,
+      "stats": {
+        "rounds": 135,
+        "friendly_hits": 0,
+        "friendly_stuns": 0,
+        "items": {
+          "flashbang": 4,
+          "bandage": 2
+        }
+      }
+    }
+  ]
+}

@@ -10,8 +10,18 @@ def is_moving_between_cells(actor: Actor, grid: GridMap) -> bool:
     return actor.mode == ActorMode.MOVING
 
 
-def update_actor_movement(actor: Actor, grid: GridMap, actors: list[Actor], dt: float) -> None:
+def update_actor_movement(actor: Actor, grid: GridMap, actors: list[Actor], dt: float, *, rotate: bool = True) -> None:
+    if not actor.alive or actor.stunned > 0:
+        return
     if actor.mode == ActorMode.STANDING and actor.route:
+        next_cell = next((cell for cell in actor.route if cell != actor.occupied_cell), None)
+        if next_cell is None:
+            clear_movement(actor)
+            return
+        if not grid.can_move(actor.occupied_cell, next_cell):
+            return
+        if next_cell == actor.reserved_cell and next_cell in stationary_occupied_cells(actor, actors, grid):
+            return
         clear_actor_peek(actor)
         begin_next_move_step(actor, grid)
     if actor.mode != ActorMode.MOVING:
@@ -24,71 +34,59 @@ def update_actor_movement(actor: Actor, grid: GridMap, actors: list[Actor], dt: 
         stop_actor_at_cell(actor, grid, actor.occupied_cell or grid.cell_of(actor.position))
         return
 
-    if actor.move_to == actor.reserved_cell and actor.move_to in blocked_final_cells(actor, actors, grid):
-        replacement = find_available_target(actor, grid, actors, actor.move_to)
-        if replacement != actor.move_to:
-            set_intent(actor, IntentType.MOVE_TO, "reroute", target_cell=replacement)
-            set_path_to(actor, grid, actors, replacement)
-        else:
-            clear_movement(actor)
-            actor.mode = ActorMode.STANDING
-            actor.occupied_cell = actor.move_from
-            actor.position = grid.cell_center(actor.occupied_cell)
-        return
-
-    if grid.can_vault(actor.move_from, actor.move_to):
-        actor.current_action = ActorAction(
-            ActionType.VAULT_LOW_WALL,
-            duration=0.85,
-            target_position=grid.cell_center(actor.move_to),
-            interrupt_policy=InterruptPolicy.THREAT,
-        )
-        actor.mode = ActorMode.ACTING
-        set_intent(actor, IntentType.ACTION, "vault low wall", target_position=grid.cell_center(actor.move_to))
-        actor.aim_error_degrees = actor.max_aim_error_degrees
-        return
-    if grid.can_open_door(actor.move_from, actor.move_to):
-        actor.current_action = ActorAction(
-            ActionType.OPEN_DOOR,
-            duration=0.65,
-            target_position=grid.cell_center(actor.move_to),
-            interrupt_policy=InterruptPolicy.THREAT,
-        )
-        actor.mode = ActorMode.ACTING
-        set_intent(actor, IntentType.ACTION, "open door", target_position=grid.cell_center(actor.move_to))
-        actor.aim_error_degrees = actor.max_aim_error_degrees
-        return
-
     start = grid.cell_center(actor.move_from)
     end = grid.cell_center(actor.move_to)
     distance = max(0.0001, start.distance_to(end))
     actor.move_progress = min(
         1.0,
-        actor.move_progress + actor.speed * crowd_speed_multiplier(actor, actors) * dt / distance,
+        actor.move_progress + actor.speed * actor.body.derived_stats().movement_efficiency * crowd_speed_multiplier(actor, actors) * dt / distance,
     )
     actor.position = start + (end - start) * actor.move_progress
     actor.aim_error_degrees = min(
         actor.max_aim_error_degrees,
         actor.aim_error_degrees + actor.move_aim_penalty_degrees_per_second * dt,
     )
-    actor.facing = rotate_toward(actor.facing, (end - start).angle(), actor.turn_speed * dt)
+    if rotate:
+        actor.facing = rotate_toward(actor.facing, (end - start).angle(), actor.turn_speed * dt)
 
     if actor.move_progress < 1.0:
         return
 
     arrived = actor.move_to
+    occupied=stationary_occupied_cells(actor,actors,grid)
+    if arrived in occupied:
+        onward=[c for c in actor.route if c!=arrived]
+        if onward and grid.can_move(arrived,onward[0]):
+            actor.route=onward;actor.path=list(onward)
+            actor.mode=ActorMode.STANDING;actor.occupied_cell=arrived
+            actor.move_from=actor.move_to=None;actor.move_progress=0
+            begin_next_move_step(actor,grid)
+            return
+        # Passing through is permitted; a combat stop must never create two
+        # stationary bodies at one center and permanently block both rifles.
+        forward=(arrived[0]-actor.move_from[0],arrived[1]-actor.move_from[1])
+        candidates=[c for c in grid.neighbors(arrived) if c not in occupied
+                    and c not in reserved_target_cells(actor,actors)]
+        candidates.sort(key=lambda c:(-((c[0]-arrived[0])*forward[0]+(c[1]-arrived[1])*forward[1]),c[1],c[0]))
+        if candidates:
+            actor.position=grid.cell_center(arrived)
+            actor.move_from=arrived;actor.move_to=candidates[0];actor.move_progress=0
+            clear_movement(actor)
+            return
+        actor.move_progress=.95
+        actor.position=start+(end-start)*.95
+        return
     if actor.route and actor.route[0] == arrived:
         actor.route.pop(0)
     if actor.path and actor.path[0] == arrived:
         actor.path.pop(0)
-    if actor.route:
-        actor.occupied_cell = None
-        actor.move_from = arrived
-        actor.move_to = None
-        actor.move_progress = 0.0
-        begin_next_move_step(actor, grid)
-        return
-    stop_actor_at_cell(actor, grid, arrived)
+    actor.mode = ActorMode.STANDING
+    actor.occupied_cell = arrived
+    actor.position = grid.cell_center(arrived)
+    actor.move_from = actor.move_to = None
+    actor.move_progress = 0.0
+    if not actor.route:
+        clear_movement(actor)
 
 
 def begin_next_move_step(actor: Actor, grid: GridMap) -> None:
@@ -227,7 +225,7 @@ def set_path_to(actor: Actor, grid: GridMap, actors: list[Actor], target_cell: t
         actor.target_cell = None
         actor.reserved_cell = None
         return
-    path = grid.find_path(current, target_cell, set(), allow_vault=True, allow_doors=True)
+    path = grid.find_path(current, target_cell)
     if path:
         actor.route = path
         actor.path = path.copy()

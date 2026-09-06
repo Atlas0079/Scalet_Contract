@@ -1,0 +1,14 @@
+test_empty_weapon_does_not_auto_reload_during_move (test_micro_priority.MicroPriorityTests.test_empty_weapon_does_not_auto_reload_during_move) ... ok
+test_guard_reaches_position_then_allows_defensive_fire (test_micro_priority.MicroPriorityTests.test_guard_reaches_position_then_allows_defensive_fire) ... ok
+test_macro_keeps_automatic_combat_stopping_rule (test_micro_priority.MicroPriorityTests.test_macro_keeps_automatic_combat_stopping_rule) ... ok
+test_micro_face_prevents_automatic_aim_stealing_turn_budget (test_micro_priority.MicroPriorityTests.test_micro_face_prevents_automatic_aim_stealing_turn_budget) ... ok
+test_move_takes_over_actual_firing_and_resumes_only_after_arrival (test_micro_priority.MicroPriorityTests.test_move_takes_over_actual_firing_and_resumes_only_after_arrival) ... ok
+test_ordinary_move_and_waypoints_ignore_visible_threat (test_micro_priority.MicroPriorityTests.test_ordinary_move_and_waypoints_ignore_visible_threat) ... ok
+test_replacement_move_interrupts_existing_automatic_reload (test_micro_priority.MicroPriorityTests.test_replacement_move_interrupts_existing_automatic_reload) ... ok
+test_shift_move_with_no_predecessor_takes_over_automatic_reload (test_micro_priority.MicroPriorityTests.test_shift_move_with_no_predecessor_takes_over_automatic_reload) ... ok
+test_unknown_fire_reports_but_does_not_interrupt_active_micro (test_micro_priority.MicroPriorityTests.test_unknown_fire_reports_but_does_not_interrupt_active_micro) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 1.179s
+
+OK

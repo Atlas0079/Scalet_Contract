@@ -1,0 +1,19 @@
+PASS demo_world_initializes: actors=6 scenario=demo
+PASS breach_world_initializes: actors=6 door=door/2.2 window=window/1.15
+PASS maze_world_initializes: actors=9 rooms=9 corridors=10
+PASS path_can_cross_occupied_cell: path=[(1, 1), (2, 1), (3, 1)] target=(3, 1)
+PASS final_target_avoids_stationary_overlap: requested=(3, 1) target=(2, 1) path=[(1, 1), (2, 1)]
+PASS crowding_slows_movement: clear_delta=0.400 crowded_delta=0.180
+PASS manual_move_command_moves_actor: occupied=(2, 1) mode=standing
+PASS manual_open_door_action_opens_door: kind=door height=0 blocks_move=False
+PASS shot_respects_full_wall: blocked=True hit=None
+PASS projectile_respects_actual_wall_height: height=1.6 blocked=True hit=None
+PASS cell_cover_blocks_movement_and_projectiles: can_move=False blocked=True feature=full_cover
+PASS shot_hits_clear_target: hit=3 damage=35.0 blocked=False
+PASS human_region_hit_resolves_to_seeded_subpart: region=left_arm part=left_upper_arm damage=10
+PASS human_critical_part_damage_kills: part=brain killed=True brain_hp=0.0
+PASS human_limb_damage_affects_derived_stats: movement_before=1.00 movement_after=0.79
+PASS weapon_shot_angle_has_separate_error_sources: aim=-0.0246 weapon=-0.0244 recoil=0.0158 final=-0.0332
+PASS weapon_fire_consumes_ammo_and_adds_recoil: ammo=29 cooldown=0.25 recoil=1.2
+PASS maze_map_has_large_rooms_and_wide_corridors: size=39x33 rooms=63-63 corridor_widths=[5, 4, 3, 3, 3, 5, 4, 4, 3, 5]
+PASS standing_cells_do_not_overlap_after_simulation: final=[(1, 4), (1, 6), (2, 8), (18, 4), (18, 6), (17, 8)]

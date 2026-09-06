@@ -1,0 +1,143 @@
+{
+  "B": [
+    {
+      "time": 0.0,
+      "room": "R",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 28.9,
+      "room": "O",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 64.8,
+      "room": "A",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 98.03,
+      "room": "W",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 127.37,
+      "blocked": "成员改变，请继续或取消",
+      "room": "W"
+    },
+    {
+      "time": 155.23,
+      "room": "L",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 169.08,
+      "blocked": "成员改变，请继续或取消",
+      "room": "L"
+    },
+    {
+      "time": 195.65,
+      "room": "U",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 456.52,
+      "winner": "red",
+      "alive": [
+        2
+      ],
+      "enemies": 0,
+      "stats": {
+        "rounds": 113,
+        "friendly_hits": 0,
+        "friendly_stuns": 0,
+        "items": {
+          "flashbang": 3
+        }
+      }
+    }
+  ],
+  "C": [
+    {
+      "time": 0.0,
+      "room": "R",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 31.07,
+      "blocked": "成员改变，请继续或取消",
+      "room": "R"
+    },
+    {
+      "time": 32.83,
+      "blocked": "成员改变，请继续或取消",
+      "room": "R"
+    },
+    {
+      "time": 49.3,
+      "room": "O",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 88.58,
+      "room": "A",
+      "method": "flash",
+      "error": null
+    },
+    {
+      "time": 122.53,
+      "room": "W",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 166.55,
+      "room": "L",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 193.33,
+      "room": "U",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 226.8,
+      "room": "N",
+      "method": "breach",
+      "error": null
+    },
+    {
+      "time": 291.53,
+      "room": "M",
+      "method": "direct",
+      "error": null
+    },
+    {
+      "time": 313.17,
+      "winner": "red",
+      "alive": [
+        1,
+        4
+      ],
+      "enemies": 0,
+      "stats": {
+        "rounds": 137,
+        "friendly_hits": 0,
+        "friendly_stuns": 0,
+        "items": {
+          "flashbang": 2
+        }
+      }
+    }
+  ]
+}

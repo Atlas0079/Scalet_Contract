@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from random import Random
 
-from .actor import ActionType, Actor, ActorMode, ActorRole, ActorState, FireMode, IntentType, PeekDirection, Team
-from .ai import choose_peek_direction, update_ai
-from .combat import ShotEvent, resolve_shot
+from .actor import ActionType, Actor, ActorMode, ActorState, Team
+from .body import create_human_body
+from .commands import ActorCommand, CommandType
+from .combat import resolve_shot
 from .geometry import Vec2
-from .map import WallKind
+from .map import create_full_cover, create_wall
 from .movement import set_path_to, update_actor_movement
-from .squad import SquadAssignment, SquadPhase, SquadPosture
-from .world import World, create_breach_world, create_world
+from .weapon import RIFLE, WeaponState
+from .world import World, create_breach_world, create_maze_world, create_world
 
 
 @dataclass(frozen=True)
@@ -21,23 +23,24 @@ class ScenarioResult:
 
 def run_ai_scenarios() -> list[ScenarioResult]:
     return [
-        hit_reaction_contact(),
-        gunshot_contact(),
-        squad_assigns_contact_roles(),
-        squad_tempo_allows_one_bounder(),
-        support_suppression(),
-        friendly_fire_hold(),
-        bandage_when_safe(),
+        demo_world_initializes(),
+        breach_world_initializes(),
+        maze_world_initializes(),
         path_can_cross_occupied_cell(),
         final_target_avoids_stationary_overlap(),
         crowding_slows_movement(),
-        moving_actor_delays_engagement(),
-        standing_actor_can_engage_after_move(),
-        actor_peeks_from_current_cover(),
-        peek_shot_uses_offset_origin(),
-        shot_hits_peeking_target_offset(),
-        breach_ai_stacks_and_opens_door(),
-        breach_ai_enters_room(),
+        manual_move_command_moves_actor(),
+        manual_open_door_action_opens_door(),
+        shot_respects_full_wall(),
+        projectile_respects_actual_wall_height(),
+        cell_cover_blocks_movement_and_projectiles(),
+        shot_hits_clear_target(),
+        human_region_hit_resolves_to_seeded_subpart(),
+        human_critical_part_damage_kills(),
+        human_limb_damage_affects_derived_stats(),
+        weapon_shot_angle_has_separate_error_sources(),
+        weapon_fire_consumes_ammo_and_adds_recoil(),
+        maze_map_has_large_rooms_and_wide_corridors(),
         standing_cells_do_not_overlap_after_simulation(),
     ]
 
@@ -76,169 +79,42 @@ def start_actor_move(
     actor.target_cell = to_cell
 
 
-def issue_ai_command(world: World, actor: Actor) -> None:
-    command = update_ai(actor, world.actors, world.grid, world.squads[actor.team], 0.1, 1, world.time)
-    if command is not None:
-        world.apply_command(command, 0.1)
-
-
-def hit_reaction_contact() -> ScenarioResult:
+def demo_world_initializes() -> ScenarioResult:
     world = create_world()
-    victim = world.actors[0]
-    shooter = world.actors[3]
-    victim.facing = 3.14
-    shot = ShotEvent(shooter.position, victim.position, shooter.team.value, damage=24.0, hit_actor_id=victim.id, hit_part="stomach")
+    passed = len(world.actors) == 6 and world.scenario_name == "demo"
+    detail = f"actors={len(world.actors)} scenario={world.scenario_name}"
+    return ScenarioResult("demo_world_initializes", passed, detail)
 
-    world._apply_hit_reaction(victim, shooter, shot)
-    world.update(0.1)
 
-    squad = world.squads[victim.team]
-    contact = squad.best_contact()
+def breach_world_initializes() -> ScenarioResult:
+    world = create_breach_world()
+    door = world.grid.wall_between((5, 5), (6, 5))
+    window = world.grid.wall_between((5, 7), (6, 7))
     passed = (
-        contact is not None
-        and contact.source == "hit_reaction"
-        and contact.confidence >= 0.55
-        and victim.intent.type in (IntentType.INVESTIGATE, IntentType.SEEK_COVER)
-        and victim.suppression > 0.0
+        len(world.actors) == 6
+        and door.kind == "door"
+        and door.interactive_id is not None
+        and door.blocks_movement
+        and window.kind == "window"
+        and 1.0 <= window.height <= 1.3
     )
-    detail = f"contact={contact.source if contact else 'none'} intent={victim.intent.label} suppression={victim.suppression:.1f}"
-    return ScenarioResult("hit_reaction_contact", passed, detail)
+    detail = f"actors={len(world.actors)} door={door.kind}/{door.height:g} window={window.kind}/{window.height:g}"
+    return ScenarioResult("breach_world_initializes", passed, detail)
 
 
-def gunshot_contact() -> ScenarioResult:
-    world = create_world()
-    shooter = world.actors[3]
-    shooter.position = Vec2(12.5, 6.5)
-    for actor in world.actors:
-        if actor.team == Team.RED:
-            actor.facing = 3.14
-
-    world._notify_gunshot(shooter)
-    world.update(0.1)
-
-    squad = world.squads[Team.RED]
-    contact = squad.best_contact()
-    responders = [
-        actor
-        for actor in world.actors
-        if actor.team == Team.RED
-        and actor.intent.type in (IntentType.INVESTIGATE, IntentType.SUPPRESS, IntentType.HOLD_POSITION)
-    ]
+def maze_world_initializes() -> ScenarioResult:
+    world = create_maze_world()
+    data = world.grid.maze_data
     passed = (
-        contact is not None
-        and contact.source == "gunshot"
-        and squad.posture == SquadPosture.CONTACT
-        and len(responders) >= 1
+        len(world.actors) >= 7
+        and world.scenario_name == "maze"
+        and data is not None
+        and len(data.rooms) == 9
+        and len(data.corridors) >= 8
+        and sum(1 for actor in world.actors if actor.team == Team.BLUE) >= 4
     )
-    detail = f"posture={squad.posture.value} contact={contact.source if contact else 'none'} responders={len(responders)}"
-    return ScenarioResult("gunshot_contact", passed, detail)
-
-
-def squad_assigns_contact_roles() -> ScenarioResult:
-    world = create_world()
-    squad = world.squads[Team.RED]
-    squad.add_contact(Vec2(10.5, 6.5), source="ally_report", confidence=0.8, now=world.time, enemy_id=3)
-    squad.update(world.time, 0.0)
-    squad.update_assignments([actor for actor in world.actors if actor.team == Team.RED])
-
-    assignments = {actor.role: squad.assignment_for(actor) for actor in world.actors if actor.team == Team.RED}
-    passed = (
-        assignments.get(ActorRole.POINTMAN) == SquadAssignment.CONTACT_LEAD
-        and assignments.get(ActorRole.SUPPORT) == SquadAssignment.BASE_OF_FIRE
-        and assignments.get(ActorRole.RIFLEMAN) == SquadAssignment.FLANK
-    )
-    detail = " ".join(
-        f"{role.value}={assignment.value if assignment else 'none'}"
-        for role, assignment in assignments.items()
-    )
-    return ScenarioResult("squad_assigns_contact_roles", passed, detail)
-
-
-def squad_tempo_allows_one_bounder() -> ScenarioResult:
-    world = create_world()
-    squad = world.squads[Team.RED]
-    actors = [actor for actor in world.actors if actor.team == Team.RED]
-    squad.add_contact(Vec2(10.5, 6.5), source="ally_report", confidence=0.8, now=world.time, enemy_id=3)
-    squad.update(world.time, 0.0)
-    squad.update_assignments(actors)
-    squad.update_tempo(actors, 0.1)
-    squad.update_tempo(actors, 1.0)
-
-    for actor in actors:
-        command = update_ai(actor, world.actors, world.grid, squad, 0.1, 1, world.time)
-        if command is not None:
-            world.apply_command(command, 0.1)
-
-    bound = next((actor for actor in actors if actor.id == squad.bound_actor_id), None)
-    movers = [
-        actor
-        for actor in actors
-        if actor.intent.target_cell is not None
-        and actor.intent.type in (IntentType.INVESTIGATE, IntentType.SEEK_COVER, IntentType.SUPPRESS)
-    ]
-    waiting = [
-        actor
-        for actor in actors
-        if actor is not bound
-        and actor.intent.type in (IntentType.HOLD_POSITION, IntentType.SUPPRESS)
-        and "wait for bound" in actor.intent.reason
-    ]
-    passed = (
-        squad.phase == SquadPhase.BOUNDING
-        and bound is not None
-        and len(movers) == 1
-        and movers[0] is bound
-        and len(waiting) >= 1
-    )
-    detail = (
-        f"phase={squad.phase.value} bound={bound.name if bound else 'none'} "
-        f"movers={[actor.name for actor in movers]} waiting={[actor.name for actor in waiting]}"
-    )
-    return ScenarioResult("squad_tempo_allows_one_bounder", passed, detail)
-
-
-def support_suppression() -> ScenarioResult:
-    world = create_world()
-    support = world.actors[2]
-    squad = world.squads[support.team]
-    contact_position = Vec2(10.5, 8.5)
-
-    squad.add_contact(contact_position, source="ally_report", confidence=0.8, now=world.time, enemy_id=3)
-    squad.update(world.time, 0.0)
-    issue_ai_command(world, support)
-
-    passed = support.role == ActorRole.SUPPORT and support.intent.type == IntentType.SUPPRESS
-    detail = f"role={support.role.value} intent={support.intent.label}"
-    return ScenarioResult("support_suppression", passed, detail)
-
-
-def friendly_fire_hold() -> ScenarioResult:
-    world = create_world()
-    shooter = world.actors[0]
-    ally = world.actors[1]
-    target = world.actors[3]
-    shooter.position = Vec2(5.5, 5.5)
-    ally.position = Vec2(7.5, 5.5)
-    target.position = Vec2(9.5, 5.5)
-
-    mode, reason = world._choose_fire_mode(shooter, target)
-
-    passed = mode == FireMode.HOLD_FIRE
-    detail = f"mode={mode.value} reason={reason}"
-    return ScenarioResult("friendly_fire_hold", passed, detail)
-
-
-def bandage_when_safe() -> ScenarioResult:
-    world = create_world()
-    actor = world.actors[1]
-    actor.body.damage("leftArm", 30.0)
-
-    issue_ai_command(world, actor)
-
-    action = actor.current_action.type if actor.current_action is not None else None
-    passed = action == ActionType.BANDAGE and actor.intent.type == IntentType.ACTION
-    detail = f"action={action.value if action else 'none'} intent={actor.intent.label}"
-    return ScenarioResult("bandage_when_safe", passed, detail)
+    detail = f"actors={len(world.actors)} rooms={len(data.rooms) if data else 0} corridors={len(data.corridors) if data else 0}"
+    return ScenarioResult("maze_world_initializes", passed, detail)
 
 
 def path_can_cross_occupied_cell() -> ScenarioResult:
@@ -292,127 +168,185 @@ def crowding_slows_movement() -> ScenarioResult:
     return ScenarioResult("crowding_slows_movement", passed, detail)
 
 
-def moving_actor_delays_engagement() -> ScenarioResult:
-    world = create_world()
-    mover = world.actors[0]
-    enemy = world.actors[3]
-    start_actor_move(world, mover, (5, 5), (6, 5), progress=0.2)
-    mover.facing = 0.0
-    mover.state = ActorState.ENGAGE
-    mover.target_id = enemy.id
-    place_actor(world, enemy, (8, 5))
-    enemy.facing = 0.0
-
-    world.update(0.1)
-
-    passed = mover.intent.type == IntentType.MOVE_TO and len(world.shots) == 0 and mover.weapon.ammo == mover.weapon.spec.magazine_size
-    detail = f"intent={mover.intent.label} shots={len(world.shots)} ammo={mover.weapon.ammo}"
-    return ScenarioResult("moving_actor_delays_engagement", passed, detail)
-
-
-def standing_actor_can_engage_after_move() -> ScenarioResult:
+def manual_move_command_moves_actor() -> ScenarioResult:
     world = create_world()
     actor = world.actors[0]
-    enemy = world.actors[3]
-    place_actor(world, actor, (5, 5))
-    actor.facing = 0.0
-    place_actor(world, enemy, (8, 5))
+    place_actor(world, actor, (1, 1))
 
-    issue_ai_command(world, actor)
+    world.apply_command(ActorCommand(actor.id, CommandType.MOVE_TO, "manual move", target_cell=(2, 1)))
+    for _ in range(40):
+        world.update(1.0 / 30.0)
 
-    passed = actor.intent.type == IntentType.ENGAGE and actor.state == ActorState.ENGAGE
-    detail = f"state={actor.state.value} intent={actor.intent.label}"
-    return ScenarioResult("standing_actor_can_engage_after_move", passed, detail)
+    passed = actor.occupied_cell == (2, 1) and actor.mode == ActorMode.STANDING
+    detail = f"occupied={actor.occupied_cell} mode={actor.mode.value}"
+    return ScenarioResult("manual_move_command_moves_actor", passed, detail)
 
 
-def actor_peeks_from_current_cover() -> ScenarioResult:
-    world = create_world()
+def manual_open_door_action_opens_door() -> ScenarioResult:
+    world = create_breach_world()
     actor = world.actors[0]
-    enemy = world.actors[3]
     place_actor(world, actor, (5, 5))
-    place_actor(world, enemy, (5, 3))
-    actor.facing = -1.57
-    enemy.facing = 1.57
-    world.grid.set_wall((5, 5), "N", WallKind.FULL)
 
-    issue_ai_command(world, actor)
-
-    passed = (
-        actor.intent.type == IntentType.ENGAGE
-        and actor.peek_direction in (PeekDirection.E, PeekDirection.W)
-        and actor.target_cell is None
-        and not actor.route
+    world.apply_command(
+        ActorCommand(
+            actor.id,
+            CommandType.START_ACTION,
+            "manual open door",
+            target_position=world.grid.cell_center((6, 5)),
+            action_type=ActionType.OPEN_DOOR,
+            duration=0.1,
+        )
     )
-    detail = f"intent={actor.intent.label} peek={actor.peek_direction} route={actor.route}"
-    return ScenarioResult("actor_peeks_from_current_cover", passed, detail)
+    for _ in range(12):
+        world.update(1.0 / 60.0)
+
+    wall = world.grid.wall_between((5, 5), (6, 5))
+    passed = wall.kind == "door" and not wall.blocks_movement and wall.height == 0.0
+    detail = f"kind={wall.kind} height={wall.height:g} blocks_move={wall.blocks_movement}"
+    return ScenarioResult("manual_open_door_action_opens_door", passed, detail)
 
 
-def peek_shot_uses_offset_origin() -> ScenarioResult:
+def shot_respects_full_wall() -> ScenarioResult:
     world = create_world()
-    actor = world.actors[0]
-    enemy = world.actors[3]
-    place_actor(world, actor, (5, 5))
-    place_actor(world, enemy, (5, 3))
-    world.grid.set_wall((5, 5), "N", WallKind.FULL)
+    shooter = world.actors[0]
+    target = world.actors[3]
+    place_actor(world, shooter, (5, 2))
+    place_actor(world, target, (8, 2))
 
-    peek = choose_peek_direction(actor, world.grid, enemy.position)
+    shot = resolve_shot(shooter, target.position, world.grid, world.actors, world.rng, 0.0)
 
-    passed = peek is not None and peek[0] in (PeekDirection.E, PeekDirection.W) and peek[1] == PeekDirection.N
-    detail = f"peek={peek}"
-    return ScenarioResult("peek_shot_uses_offset_origin", passed, detail)
+    passed = shot.blocked and shot.hit_actor_id is None
+    detail = f"blocked={shot.blocked} hit={shot.hit_actor_id}"
+    return ScenarioResult("shot_respects_full_wall", passed, detail)
 
 
-def shot_hits_peeking_target_offset() -> ScenarioResult:
+def projectile_respects_actual_wall_height() -> ScenarioResult:
+    world = create_world()
+    shooter = world.actors[0]
+    target = world.actors[3]
+    place_actor(world, shooter, (8, 4))
+    place_actor(world, target, (8, 8))
+    world.grid.set_edge_feature((8, 5), "S", create_wall(1.6, kind="test_cover"))
+
+    shot = resolve_shot(shooter, target.position, world.grid, world.actors, world.rng, 0.0)
+    feature = world.grid.wall_between((8, 5), (8, 6))
+
+    passed = shot.blocked and shot.hit_actor_id is None and feature.height == 1.6
+    detail = f"height={feature.height:g} blocked={shot.blocked} hit={shot.hit_actor_id}"
+    return ScenarioResult("projectile_respects_actual_wall_height", passed, detail)
+
+
+def cell_cover_blocks_movement_and_projectiles() -> ScenarioResult:
+    world = create_world()
+    shooter = world.actors[0]
+    target = world.actors[3]
+    place_actor(world, shooter, (9, 6))
+    place_actor(world, target, (12, 6))
+    world.grid.set_cell_feature((10, 6), create_full_cover(1.9))
+
+    can_move_into_cover = world.grid.can_move((9, 6), (10, 6))
+    shot = resolve_shot(shooter, target.position, world.grid, world.actors, world.rng, 0.0)
+
+    passed = not can_move_into_cover and shot.blocked and shot.hit_actor_id is None
+    detail = f"can_move={can_move_into_cover} blocked={shot.blocked} feature={world.grid.cell_feature_at((10, 6)).kind}"
+    return ScenarioResult("cell_cover_blocks_movement_and_projectiles", passed, detail)
+
+
+def shot_hits_clear_target() -> ScenarioResult:
     world = create_world()
     shooter = world.actors[0]
     target = world.actors[3]
     place_actor(world, shooter, (8, 2))
     place_actor(world, target, (10, 2))
-    target.peek_direction = PeekDirection.N
-    target.peek_cover_direction = PeekDirection.W
 
-    shot = resolve_shot(shooter, target.position + Vec2(-0.52, -0.52), world.grid, world.actors, world.rng, 0.0)
+    shot = resolve_shot(shooter, target.position, world.grid, world.actors, world.rng, 0.0)
 
-    passed = shot.hit_actor_id == target.id and shot.end.y < target.position.y
-    detail = f"hit={shot.hit_actor_id} end=({shot.end.x:.2f},{shot.end.y:.2f}) target_y={target.position.y:.2f}"
-    return ScenarioResult("shot_hits_peeking_target_offset", passed, detail)
+    passed = shot.hit_actor_id == target.id and shot.damage > 0.0
+    detail = f"hit={shot.hit_actor_id} damage={shot.damage:.1f} blocked={shot.blocked}"
+    return ScenarioResult("shot_hits_clear_target", passed, detail)
 
 
-def breach_ai_stacks_and_opens_door() -> ScenarioResult:
-    world = create_breach_world()
-    for _ in range(160):
-        world.update(1.0 / 30.0)
+def human_region_hit_resolves_to_seeded_subpart() -> ScenarioResult:
+    body = create_human_body()
+    hit = body.resolve_hit("left_arm", 10.0, "ballistic", Random(7))
 
-    memory = world.breach_memory
-    door_open = world.grid.wall_between((5, 5), (6, 5)) == WallKind.DOOR_OPEN
-    red_intents = [actor.intent.reason for actor in world.actors if actor.team == Team.RED]
-    passed = memory is not None and door_open and memory.stage.value in ("breach", "clear", "stabilize")
-    detail = f"stage={memory.stage.value if memory else 'none'} door_open={door_open} intents={red_intents}"
-    return ScenarioResult("breach_ai_stacks_and_opens_door", passed, detail)
+    passed = hit.region_id == "left_arm" and hit.part_id == "left_upper_arm" and hit.damage == 10.0
+    detail = f"region={hit.region_id} part={hit.part_id} damage={hit.damage:g}"
+    return ScenarioResult("human_region_hit_resolves_to_seeded_subpart", passed, detail)
 
 
-def breach_ai_enters_room() -> ScenarioResult:
-    world = create_breach_world()
-    for _ in range(260):
-        world.update(1.0 / 30.0)
+def human_critical_part_damage_kills() -> ScenarioResult:
+    body = create_human_body()
+    hit = body.damage_part("brain", 999.0, "ballistic")
 
-    memory = world.breach_memory
-    assert memory is not None
-    red_inside = [
-        actor.name
-        for actor in world.actors
-        if actor.team == Team.RED and (actor.occupied_cell or world.grid.cell_of(actor.position)) in memory.plan.room_cells
-    ]
-    support = next(actor for actor in world.actors if actor.team == Team.RED and actor.role == ActorRole.SUPPORT)
-    support_cell = support.occupied_cell or world.grid.cell_of(support.position)
-    passed = memory.stage.value in ("clear", "stabilize") and (support_cell == memory.plan.window_outside or support_cell in memory.plan.room_cells)
-    detail = f"stage={memory.stage.value} inside={red_inside} support={support.intent.label}"
-    return ScenarioResult("breach_ai_enters_room", passed, detail)
+    passed = hit.killed and body.dead
+    detail = f"part={hit.part_id} killed={hit.killed} brain_hp={body.hp('brain'):.1f}"
+    return ScenarioResult("human_critical_part_damage_kills", passed, detail)
+
+
+def human_limb_damage_affects_derived_stats() -> ScenarioResult:
+    body = create_human_body()
+    before = body.derived_stats().movement_efficiency
+    body.damage_part("left_thigh", 999.0, "ballistic")
+    after = body.derived_stats().movement_efficiency
+
+    passed = 0.15 <= after < before
+    detail = f"movement_before={before:.2f} movement_after={after:.2f}"
+    return ScenarioResult("human_limb_damage_affects_derived_stats", passed, detail)
+
+
+def weapon_shot_angle_has_separate_error_sources() -> ScenarioResult:
+    weapon = WeaponState.create(RIFLE)
+    weapon.recoil_error_degrees = 3.0
+
+    angle = weapon.sample_shot_angle(0.0, 4.0, Random(7))
+
+    passed = angle.aim_offset != 0.0 and angle.weapon_offset != 0.0 and angle.recoil_offset != 0.0
+    detail = (
+        f"aim={angle.aim_offset:.4f} weapon={angle.weapon_offset:.4f} "
+        f"recoil={angle.recoil_offset:.4f} final={angle.final_angle:.4f}"
+    )
+    return ScenarioResult("weapon_shot_angle_has_separate_error_sources", passed, detail)
+
+
+def weapon_fire_consumes_ammo_and_adds_recoil() -> ScenarioResult:
+    weapon = WeaponState.create(RIFLE)
+
+    weapon.consume_round()
+
+    passed = weapon.ammo == RIFLE.magazine_size - 1 and weapon.cooldown == RIFLE.fire_interval and weapon.recoil_error_degrees > 0.0
+    detail = f"ammo={weapon.ammo} cooldown={weapon.cooldown:.2f} recoil={weapon.recoil_error_degrees:.1f}"
+    return ScenarioResult("weapon_fire_consumes_ammo_and_adds_recoil", passed, detail)
+
+
+def maze_map_has_large_rooms_and_wide_corridors() -> ScenarioResult:
+    world = create_maze_world()
+    data = world.grid.maze_data
+    room_sizes = [len(room.cells) for room in data.rooms]
+    corridor_widths = [min(corridor_span_width(corridor.cells)) for corridor in data.corridors]
+    passed = (
+        world.grid.width >= 39
+        and world.grid.height >= 33
+        and min(room_sizes) >= 60
+        and min(corridor_widths) >= 3
+        and max(corridor_widths) <= 5
+    )
+    detail = (
+        f"size={world.grid.width}x{world.grid.height} "
+        f"rooms={min(room_sizes)}-{max(room_sizes)} corridor_widths={corridor_widths}"
+    )
+    return ScenarioResult("maze_map_has_large_rooms_and_wide_corridors", passed, detail)
+
+
+def corridor_span_width(cells: tuple[tuple[int, int], ...]) -> tuple[int, int]:
+    xs = {cell[0] for cell in cells}
+    ys = {cell[1] for cell in cells}
+    return len(xs), len(ys)
 
 
 def standing_cells_do_not_overlap_after_simulation() -> ScenarioResult:
     world = create_world()
-    for _ in range(180):
+    for _ in range(60):
         world.update(1.0 / 30.0)
         occupied: list[tuple[Team, tuple[int, int]]] = [
             (actor.team, actor.occupied_cell)

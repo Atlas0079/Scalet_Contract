@@ -1,0 +1,234 @@
+{
+  "A": {
+    "source": "playthrough-ABC-v1.json",
+    "variant": 1,
+    "commands_and_events": [
+      {
+        "time": 0.0,
+        "room": "R",
+        "method": "direct",
+        "error": null
+      },
+      {
+        "time": 35.05,
+        "room": "O",
+        "method": "flash",
+        "error": null
+      },
+      {
+        "time": 58.12,
+        "blocked": "成员改变，请继续或取消",
+        "room": "O"
+      },
+      {
+        "time": 76.57,
+        "room": "A",
+        "method": "flash",
+        "error": null
+      },
+      {
+        "time": 109.88,
+        "room": "W",
+        "method": "flash",
+        "error": null
+      },
+      {
+        "time": 140.05,
+        "blocked": "成员改变，请继续或取消",
+        "room": "W"
+      },
+      {
+        "time": 165.27,
+        "room": "L",
+        "method": "direct",
+        "error": null
+      },
+      {
+        "time": 193.28,
+        "room": "U",
+        "method": "direct",
+        "error": null
+      },
+      {
+        "time": 230.9,
+        "room": "N",
+        "method": "flash",
+        "error": null
+      },
+      {
+        "time": 525.18,
+        "winner": "red",
+        "alive": [
+          3
+        ],
+        "enemies": 0,
+        "stats": {
+          "rounds": 133,
+          "friendly_hits": 0,
+          "friendly_stuns": 1,
+          "items": {
+            "flashbang": 4
+          }
+        }
+      }
+    ]
+  },
+  "B": {
+    "source": "playthrough-B-v4.json",
+    "variant": 4,
+    "commands_and_events": [
+      {
+        "time": 0.0,
+        "room": "R",
+        "method": "direct",
+        "error": null
+      },
+      {
+        "time": 31.35,
+        "room": "O",
+        "method": "flash",
+        "error": null
+      },
+      {
+        "time": 67.4,
+        "room": "A",
+        "method": "flash",
+        "error": null
+      },
+      {
+        "time": 101.82,
+        "room": "W",
+        "method": "flash",
+        "error": null
+      },
+      {
+        "time": 156.1,
+        "room": "L",
+        "method": "direct",
+        "error": null
+      },
+      {
+        "time": 170.55,
+        "blocked": "成员改变，请继续或取消",
+        "room": "L"
+      },
+      {
+        "time": 196.15,
+        "room": "U",
+        "method": "direct",
+        "error": null
+      },
+      {
+        "time": 221.98,
+        "room": "N",
+        "method": "flash",
+        "error": null
+      },
+      {
+        "time": 259.62,
+        "room": "M",
+        "method": "direct",
+        "error": null
+      },
+      {
+        "time": 271.95,
+        "winner": "red",
+        "alive": [
+          2,
+          3,
+          4
+        ],
+        "enemies": 0,
+        "stats": {
+          "rounds": 76,
+          "friendly_hits": 0,
+          "friendly_stuns": 0,
+          "items": {
+            "flashbang": 4
+          }
+        }
+      }
+    ]
+  },
+  "C": {
+    "source": "playthrough-ABC-v0.json",
+    "variant": 0,
+    "commands_and_events": [
+      {
+        "time": 0.0,
+        "room": "L",
+        "method": "direct",
+        "error": null
+      },
+      {
+        "time": 37.62,
+        "room": "U",
+        "method": "direct",
+        "error": null
+      },
+      {
+        "time": 65.45,
+        "room": "N",
+        "method": "flash",
+        "error": null
+      },
+      {
+        "time": 88.05,
+        "blocked": "成员改变，请继续或取消",
+        "room": "N"
+      },
+      {
+        "time": 111.03,
+        "room": "M",
+        "method": "direct",
+        "error": null
+      },
+      {
+        "time": 137.07,
+        "room": "W",
+        "method": "flash",
+        "error": null
+      },
+      {
+        "time": 233.02,
+        "room": "R",
+        "method": "direct",
+        "error": null
+      },
+      {
+        "time": 293.97,
+        "room": "O",
+        "method": "flash",
+        "error": null
+      },
+      {
+        "time": 313.42,
+        "blocked": "成员改变，请继续或取消",
+        "room": "O"
+      },
+      {
+        "time": 341.48,
+        "room": "A",
+        "method": "flash",
+        "error": null
+      },
+      {
+        "time": 354.05,
+        "winner": "red",
+        "alive": [
+          2,
+          4
+        ],
+        "enemies": 0,
+        "stats": {
+          "rounds": 69,
+          "friendly_hits": 0,
+          "friendly_stuns": 0,
+          "items": {
+            "flashbang": 4
+          }
+        }
+      }
+    ]
+  }
+}

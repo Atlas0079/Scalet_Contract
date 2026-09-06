@@ -4,8 +4,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from math import radians
 
+from .body import BodyInstance, create_human_body
 from .geometry import Vec2
 from .weapon import RIFLE, WeaponState
+from .items import Inventory
 
 
 class Team(Enum):
@@ -97,6 +99,7 @@ class ActionType(Enum):
     BANDAGE = "bandage"
     VAULT_LOW_WALL = "vault_low_wall"
     OPEN_DOOR = "open_door"
+    KICK_DOOR = "kick_door"
 
 
 class InterruptPolicy(Enum):
@@ -114,6 +117,11 @@ class ActorAction:
     target_actor_id: int | None = None
     interrupt_policy: InterruptPolicy = InterruptPolicy.THREAT
     interrupted_reason: str | None = None
+    door_id: str | None = None
+    item_id: str | None = None
+    part_id: str | None = None
+    owner_token: str | None = None
+    refill: int = 0
 
     @property
     def progress(self) -> float:
@@ -144,29 +152,6 @@ class TacticProfile:
     medical: MedicalPolicy = MedicalPolicy.SELF_PRESERVE
 
 
-BODY_MAX_HP: dict[str, float] = {
-    "head": 35.0,
-    "thorax": 85.0,
-    "stomach": 70.0,
-    "leftArm": 60.0,
-    "rightArm": 60.0,
-    "leftLeg": 65.0,
-    "rightLeg": 65.0,
-}
-
-
-@dataclass
-class Body:
-    hp: dict[str, float] = field(default_factory=lambda: BODY_MAX_HP.copy())
-
-    @property
-    def dead(self) -> bool:
-        return self.hp["head"] <= 0.0 or self.hp["thorax"] <= 0.0
-
-    def damage(self, part: str, amount: float) -> None:
-        self.hp[part] = max(0.0, self.hp[part] - amount)
-
-
 @dataclass
 class Actor:
     id: int
@@ -177,7 +162,7 @@ class Actor:
     role: ActorRole = ActorRole.RIFLEMAN
     tactics: TacticProfile = field(default_factory=TacticProfile)
     weapon: WeaponState = field(default_factory=lambda: WeaponState.create(RIFLE))
-    body: Body = field(default_factory=Body)
+    body: BodyInstance = field(default_factory=create_human_body)
     mode: ActorMode = ActorMode.STANDING
     occupied_cell: tuple[int, int] | None = None
     reserved_cell: tuple[int, int] | None = None
@@ -195,13 +180,13 @@ class Actor:
     heard_timer: float = 0.0
     under_fire_position: Vec2 | None = None
     under_fire_timer: float = 0.0
+    under_fire_angle: float | None = None
+    response: str = ""
     suppression: float = 0.0
-    grenades: int = 1
-    bandages: int = 1
+    inventory: Inventory = field(default_factory=Inventory)
     current_action: ActorAction | None = None
     aim_target_id: int | None = None
     aim_error_degrees: float = 8.0
-    recoil_error_degrees: float = 0.0
     fire_mode: FireMode = FireMode.AIMED_SHOT
     fire_reason: str = "no target"
     peek_direction: PeekDirection | None = None
@@ -220,9 +205,29 @@ class Actor:
     max_aim_error_degrees: float = 8.0
     aim_settle_degrees_per_second: float = 10.0
     move_aim_penalty_degrees_per_second: float = 12.0
-    recoil_per_shot_degrees: float = 1.2
-    recoil_recovery_degrees_per_second: float = 4.0
-    max_recoil_degrees: float = 10.0
+    stunned: float = 0.0
+    guard_angle: float | None = None
+    guard_explicit: bool = False
+    visible: set[int] = field(default_factory=set)
+    recognized: set[int] = field(default_factory=set)
+    identification: dict[int, float] = field(default_factory=dict)
+    memory: dict[int, tuple[Vec2, float]] = field(default_factory=dict)
+    reaction: float = 0.0
+    recent_attackers: dict[int, float] = field(default_factory=dict)
+    ai_state: str = "guard"
+    ai_enabled: bool = False
+    home_cell: tuple[int, int] | None = None
+    home_angle: float = 0.0
+    patrol: tuple[tuple[int, int], ...] = ()
+    patrol_index: int = 0
+    ai_goal: tuple[int, int] | None = None
+    ai_until: float = 0.0
+    ai_wait: float = 0.0
+    report_time: float = -1.0
+    queue: list = field(default_factory=list)
+    task_id: int | None = None
+    blocked_reason: str = ""
+    hit_flash: float = 0.0
 
     @property
     def alive(self) -> bool:

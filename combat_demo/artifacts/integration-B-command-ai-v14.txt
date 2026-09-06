@@ -1,0 +1,9 @@
+B {'time': 0.0, 'room': 'R', 'method': 'direct', 'error': None}
+B {'time': 31.35, 'room': 'O', 'method': 'flash', 'error': None}
+B {'time': 68.73, 'room': 'A', 'method': 'flash', 'error': None}
+B {'time': 79.5, 'blocked': '成员阵亡，请继续或取消', 'room': 'A'}
+B {'time': 82.17, 'blocked': '2 号受到未确认方向来弹', 'room': 'A'}
+B {'time': 104.15, 'room': 'W', 'method': 'flash', 'error': None}
+B {'time': 147.68, 'room': 'L', 'method': 'direct', 'error': None}
+B {'time': 161.0, 'blocked': '成员阵亡，请继续或取消', 'room': 'L'}
+{'config': 'B', 'variant': 4, 'time': 377.0666666666524, 'winner': 'blue', 'alive': [], 'enemies': 3, 'stats': {'rounds': 67, 'friendly_hits': 0, 'friendly_stuns': 0, 'items': {'flashbang': 3}}}

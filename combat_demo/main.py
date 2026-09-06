@@ -1,17 +1,24 @@
 from __future__ import annotations
-
-import sys
-
-from rendering.pygame_view import PygameView
-from simulation.world import create_breach_world, create_world
+import argparse
+from pathlib import Path
 
 
-def main() -> None:
-    scenario = sys.argv[1] if len(sys.argv) > 1 else "demo"
-    factory = create_breach_world if scenario == "breach" else create_world
-    view = PygameView(factory, scenario)
-    view.run()
+def main():
+    parser=argparse.ArgumentParser(description="Scarlet Contract · 灰港档案室")
+    parser.add_argument("--config",choices=("A","B","C"),default="A")
+    parser.add_argument("--capture",type=Path,help="Render a deterministic initial mission screenshot and exit")
+    parser.add_argument("--headless",action="store_true")
+    args=parser.parse_args()
+    if args.headless:
+        import os
+        os.environ["SDL_VIDEODRIVER"]="dummy";os.environ["SDL_AUDIODRIVER"]="dummy"
+    import pygame
+    from rendering.pygame_view import PygameView
+    view=PygameView(args.config)
+    if args.capture:
+        view.start_mission();view.draw();args.capture.parent.mkdir(parents=True,exist_ok=True)
+        pygame.image.save(view.screen,str(args.capture));pygame.quit()
+    else:view.run()
 
 
-if __name__ == "__main__":
-    main()
+if __name__=="__main__":main()
