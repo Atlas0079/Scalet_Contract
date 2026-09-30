@@ -3,10 +3,14 @@ extends Node2D
 const ACTOR = preload("res://presentation/tactical/tactical_actor.gd")
 const FIRE_FX = preload("res://presentation/tactical/tactical_fire_fx.gd")
 const TARGET_PAPER = preload("res://presentation/tactical/tactical_target_paper.gd")
+const RANGE_CONTROLS = preload("res://presentation/tactical/range_controls.gd")
+const DESIGN_SIZE := Vector2i(2560, 1440)
+const ACTOR_DESIGN_SIZE := 104.0
+var controls: RefCounted
 var target_paper: Control
 const CELL := 40.0
-const MAP := Rect2(24, 132, 1152, 400)
-const ZOOM := Rect2(24, 566, 208, 144)
+const MAP := Rect2(752, 200, 1152, 400)
+const ZOOM := Rect2(752, 724, 480, 460)
 var units: Array[Node3D] = []
 var cameras: Array[Camera3D] = []
 var sprites: Array[Sprite2D] = []
@@ -61,12 +65,16 @@ var test_pilot: SCActor
 var simulation_time := 0.0
 var aim_speed := 0.0
 var aim_turn_rate := 0.0
+var force_index := 0
 
 func angle_speed(radians: float) -> float:
 	return SCData.angle_speed(character.capabilities.values.move_angle_curve, radians)
 
 func select_character(index: int):
 	profile_index = index
+	for source in character.sources.duplicate():
+		if ":range_input:" in source.source_id or source.source_id.ends_with(":range_force"): character.remove_source(source.source_id)
+	force_index = 1
 	character.configure_character(character_choices[index])
 	if character.definition.species == "robot":
 		character.bind_controller(test_pilot,{"connected":true,"quality":1.0,"latency":0.0,"sync_base":0.6,"sync_ceiling":0.6})
@@ -77,7 +85,10 @@ func select_character(index: int):
 		unit.gait.aim_limit = posture.aim_limit_degrees
 		unit.gait.pitch_limit = posture.aim_pitch_limit_degrees
 		unit.gait.nominal_speed = character.speed
-	profile_button.text = "运动：%s / P" % character.definition.name
+	profile_button.text = "%s / P" % character.definition.name
+	if controls:
+		reset_experiment()
+		controls.sync_editors()
 	refresh_ui()
 
 func cycle_profile():
@@ -107,21 +118,30 @@ func cycle_weapon():
 	for i in range(2):
 		make_unit(i)
 		zoom_sprites[i].texture = views[i].get_texture()
-		zoom_sprites[i].material = sprites[i].material
+		zoom_sprites[i].material = sprites[i].material.duplicate() if sprites[i].material else null
 		zoom_shadows[i].texture = views[i].get_texture()
 		make_effect_views(i)
 	reset()
 	refresh_visibility()
 	refresh_weapon_ui()
+	update_render_resolution()
 
 func refresh_weapon_ui():
 	weapon_button.text = "%s / V" % character.weapon.definition.item.name
 	title_label.text = "射击测试场 · %d m/s" % SCData.projectile_speed(character.weapon)
 	instructions_label.text = "H 瞄准高度 %.2f m · C 下一射位\nB 白模 / 风格化 · 右键对准靶心\n橙色弹着：遮挡 · 金色弹着：命中" % SCData.study.target.aim_heights_m[height_index]
+	if controls: controls.sync_editors()
 
 func _ready():
 	if not SCData.ensure_valid(get_tree()): return
-	get_window().size = Vector2i(1600, 780)
+	var window := get_window()
+	window.content_scale_size = DESIGN_SIZE
+	window.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	window.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
+	window.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_FRACTIONAL
+	window.min_size = Vector2i(1280, 720)
+	window.size = DESIGN_SIZE
+	window.size_changed.connect(update_render_resolution)
 	var bounds: Array = SCData.study.range.bounds_m
 	arena_bounds = Rect2(bounds[0], bounds[1], bounds[2], bounds[3])
 	character_choices = SCData.study.character_choices
@@ -132,18 +152,18 @@ func _ready():
 	test_pilot.training_enabled = false
 	profile_index = character_choices.find(character.character_id)
 	weapon_index = weapon_choices.find(character.weapon.definition.item.id)
+	for i in range(SCData.study.force_choices.size()):
+		if is_equal_approx(SCData.study.force_choices[i].multiplier,1.0): force_index = i
 	RenderingServer.set_default_clear_color(Color("11191c"))
 	ui = Control.new()
 	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(ui)
-	label("SCARLET CONTRACT    /    RANGE & COVER", Vector2(24, 16), 14, "849a90")
-	title_label = label("射击测试场", Vector2(24, 40), 26, "e0e2d2")
-	style_button = button("风格化 / B", Vector2(492, 40), 182, toggle_style)
-	weapon_button = button("", Vector2(686, 40), 218, cycle_weapon)
-	profile_button = button("%s / P" % character.definition.name, Vector2(916, 40), 260, cycle_profile)
+	label("SCARLET CONTRACT    /    BALLISTICS LAB", Vector2(24, 16), 22, "849a90")
+	title_label = label("射击测试场", Vector2(752, 48), 36, "e0e2d2")
+	style_button = button("风格化 / B", Vector2(1674, 48), 230, toggle_style)
 	for i in range(SCData.study.range.lanes.size()):
-		lane_buttons.append(button("%d · %s" % [i + 1, SCData.study.range.lanes[i].label], Vector2(24 + i * 144, 86), 136, choose_lane.bind(i)))
+		lane_buttons.append(button("%d · %s" % [i + 1, SCData.study.range.lanes[i].label], Vector2(752 + i * 144, 132), 136, choose_lane.bind(i)))
 	map_clip = make_clip(MAP)
 	zoom_clip = make_clip(ZOOM)
 	for i in range(2):
@@ -151,33 +171,38 @@ func _ready():
 		var zoom := Sprite2D.new()
 		zoom.texture = views[i].get_texture()
 		zoom.scale = Vector2.ONE * 3.0
-		zoom.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		zoom.material = sprites[i].material
+		zoom.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		zoom.material = sprites[i].material.duplicate() if sprites[i].material else null
 		zoom_clip.add_child(zoom)
 		zoom.z_index = 3
 		zoom_sprites.append(zoom)
 		zoom_shadows.append(make_shadow(i, zoom_clip, 3.0))
 		make_effect_views(i)
-	status = label("", Vector2(24, 540), 15, "bfcbbc")
-	aim_status = label("", Vector2(256, 566), 16, "b8c6ab")
-	fire_status = label("", Vector2(680, 566), 16, "dad7ba")
-	instructions_label = label("", Vector2(680, 597), 15, "9daf9f")
-	movement_label = label("", Vector2(256, 666), 14, "a7bcad")
-	demo_button = button("巡回演示：开", Vector2(24, 714), 174, toggle_demo)
-	pause_button = button("暂停 / 空格", Vector2(210, 714), 160, toggle_pause)
-	var fire_button := button("按住射击 / 左键", Vector2(382, 714), 158, Callable())
+	status = label("", Vector2(752, 616), 21, "bfcbbc")
+	label("动作观察 / 3×", Vector2(752, 678), 28, "e0e2d2")
+	aim_status = label("", Vector2(1264, 736), 24, "b8c6ab")
+	fire_status = label("", Vector2(1264, 868), 24, "dad7ba")
+	instructions_label = label("", Vector2(1264, 924), 22, "9daf9f")
+	movement_label = label("", Vector2(1264, 1052), 22, "a7bcad")
+	label("松开扳机后重新瞄准；过补偿每轮连射只发生一次。", Vector2(752, 1210), 22, "9daf9f")
+	demo_button = button("巡回演示：开", Vector2(752, 1258), 268, toggle_demo)
+	pause_button = button("暂停 / 空格", Vector2(1036, 1258), 268, toggle_pause)
+	var fire_button := button("按住射击 / 左键", Vector2(1320, 1258), 284, Callable())
 	fire_button.button_down.connect(set_trigger.bind(true))
 	fire_button.button_up.connect(set_trigger.bind(false))
-	button("换弹 / R", Vector2(552, 714), 146, reload_weapon)
-	guide_button = button("方向辅助：关", Vector2(710, 714), 170, toggle_guides)
-	button("重置 / Tab", Vector2(892, 714), 160, reset)
-	button("属性 / F2", Vector2(1064, 714), 112, show_abilities)
-	label("WASD 移动 · 鼠标瞄准 · 左键连射 · 1–8 选择射位 · H 瞄准高度 · B 切换外观 · 下方动作放大 3 倍", Vector2(24, 760), 14, "7b9187")
+	button("换弹 / R", Vector2(1620, 1258), 284, reload_weapon)
+	guide_button = button("方向辅助：关", Vector2(752, 1326), 352, toggle_guides)
+	button("重置 / Tab", Vector2(1120, 1326), 352, reset)
+	button("属性 / F2", Vector2(1488, 1326), 416, show_abilities)
+	label("WASD 移动 · 鼠标瞄准 · 左键连射 · 1–8 射位", Vector2(752, 1392), 20, "7b9187")
 	target_paper = TARGET_PAPER.new()
-	target_paper.position = Vector2(1212, 24)
-	target_paper.size = Vector2(364, 732)
+	target_paper.position = Vector2(1960, 104)
+	target_paper.size = Vector2(576, 1312)
 	target_paper.clear_requested.connect(clear_target_paper)
 	ui.add_child(target_paper)
+	controls = RANGE_CONTROLS.new(self)
+	profile_button.text = "%s / P" % character.definition.name
+	update_render_resolution()
 	reset()
 	refresh_visibility()
 	get_window().focus_exited.connect(func(): set_trigger(false, false))
@@ -205,7 +230,7 @@ func make_shadow(index: int, parent: Control, scale_factor: float) -> Sprite2D:
 	var settings: Dictionary = SCData.catalog.presentation.characters[character.definition.presentation].style.shadow
 	var shadow := Sprite2D.new()
 	shadow.texture = views[index].get_texture()
-	shadow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	shadow.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	shadow.scale = Vector2.ONE * scale_factor
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://presentation/tactical/silhouette_shadow.gdshader")
@@ -220,6 +245,7 @@ func make_shadow(index: int, parent: Control, scale_factor: float) -> Sprite2D:
 func refresh_visibility():
 	for i in range(units.size()):
 		for node in [sprites[i], shadows[i], zoom_sprites[i], zoom_shadows[i]]: node.visible = i == visible_style
+		views[i].render_target_update_mode = SubViewport.UPDATE_ALWAYS if i == visible_style else SubViewport.UPDATE_DISABLED
 	for entry in effect_views: entry.node.get_parent().visible = entry.index == visible_style
 	style_button.text = ("风格化" if visible_style == 1 else "原白模") + " / B"
 
@@ -290,7 +316,7 @@ func button(text: String, at: Vector2, width: float, callback: Callable) -> Butt
 	result.focus_mode = Control.FOCUS_NONE
 	result.text = text
 	result.position = at
-	result.size = Vector2(width, 36)
+	result.size = Vector2(width, 52)
 	for state in ["normal", "hover", "pressed", "focus"]:
 		var style := StyleBoxFlat.new()
 		style.bg_color = Color("2e413d") if state in ["hover", "pressed"] else Color("1b2a28")
@@ -298,7 +324,7 @@ func button(text: String, at: Vector2, width: float, callback: Callable) -> Butt
 		style.set_border_width_all(1)
 		style.set_corner_radius_all(3)
 		result.add_theme_stylebox_override(state, style)
-	result.add_theme_font_size_override("font_size", 15)
+	result.add_theme_font_size_override("font_size", 22 if width > 150 else 18)
 	if callback.is_valid(): result.pressed.connect(callback)
 	ui.add_child(result)
 	return result
@@ -333,7 +359,7 @@ func make_unit(index: int):
 	cameras.append(camera)
 	var sprite := Sprite2D.new()
 	sprite.texture = view.get_texture()
-	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if index == 1:
 		var style: Dictionary = SCData.catalog.presentation.characters[character.definition.presentation].style
 		var mat := ShaderMaterial.new()
@@ -345,6 +371,34 @@ func make_unit(index: int):
 	sprite.z_index = 3
 	sprites.append(sprite)
 	shadows.append(make_shadow(index, map_clip, 1.0))
+
+func update_render_resolution():
+	if views.size() != 2 or zoom_sprites.size() != 2: return
+	# Render at the largest display demand (the 3x view). Sprite scale keeps
+	# world projection at 40 design pixels/metre regardless of texture size.
+	var window_scale := minf(float(get_window().size.x) / DESIGN_SIZE.x, float(get_window().size.y) / DESIGN_SIZE.y)
+	var side := maxi(128, ceili(ACTOR_DESIGN_SIZE * 3.0 * window_scale / 16.0) * 16)
+	for i in range(views.size()):
+		if views[i].size != Vector2i(side, side): views[i].size = Vector2i(side, side)
+		var normal_scale := ACTOR_DESIGN_SIZE / side
+		for node in [sprites[i], shadows[i]]: node.scale = Vector2.ONE * normal_scale
+		for node in [zoom_sprites[i], zoom_shadows[i]]: node.scale = Vector2.ONE * normal_scale * 3.0
+		for sprite in [sprites[i], zoom_sprites[i]]:
+			# Sampling resolves a base-view design pixel. The sprite transform
+			# applies observation magnification to the entire art, including ink.
+			if sprite.material: sprite.material.set_shader_parameter("source_pixel_scale", side / ACTOR_DESIGN_SIZE)
+	if controls: controls.refresh()
+
+func reset_experiment():
+	var selected_lane := lane_index
+	var selected_height := height_index
+	demo = false
+	demo_button.text = "巡回演示：关"
+	reset()
+	select_lane(selected_lane)
+	height_index = selected_height
+	for unit in units: unit.aim_height = SCData.study.target.aim_heights_m[height_index]
+	refresh_weapon_ui()
 
 func make_effect_views(index: int):
 	for zoom in [false, true]:
@@ -433,10 +487,11 @@ func set_trigger(value: bool, manual := true):
 	if value == trigger_held: return
 	trigger_held = value
 	if value: fire()
+	else: SCCombat.stop_firing(character)
 
 func advance_firing(delta: float):
 	var remaining := delta
-	# Split at shot times so recovery and spread do not depend on display FPS.
+	# Split at shot times so gun motion and spread do not depend on display FPS.
 	while trigger_held and units[0].current_action != "reload" and fire_cooldown <= remaining + 0.000001:
 		var until_shot := minf(maxf(fire_cooldown, 0.0), remaining)
 		advance_shooter(until_shot)
@@ -460,6 +515,21 @@ func cycle_shooting_skill():
 	reset()
 
 
+func cycle_force():
+	force_index = (force_index+1)%SCData.study.force_choices.size()
+	character.remove_source(character.identity+":range_input:force_n")
+	var source_id: String = character.identity+":range_force"
+	character.remove_source(source_id)
+	var choice: Dictionary = SCData.study.force_choices[force_index]
+	if not is_equal_approx(choice.multiplier,1.0):
+		var entry := SCAbilityRules.contribution("force","capability","force_n",choice.multiplier,"bonus","factor")
+		var source := SCAbilityRules.source(source_id,"actor",character.identity,"trait","body",[entry])
+		source.definition_id = "测试场力量条件"
+		character.sources.append(source)
+		character.refresh_capabilities()
+	reset()
+
+
 func cycle_height():
 	clear_target_paper()
 	height_index = (height_index + 1) % SCData.study.target.aim_heights_m.size()
@@ -477,6 +547,7 @@ func reload_weapon():
 		unit.trigger("reload")
 
 func manual_input() -> Vector2:
+	if get_viewport().gui_get_focus_owner() is LineEdit: return Vector2.ZERO
 	return Vector2(
 		float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT)) - float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)),
 		float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)) - float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP))).normalized()
@@ -506,12 +577,14 @@ func show_abilities():
 func _unhandled_input(event):
 	if capture_mode: return
 	if event is InputEventKey and event.pressed and not event.echo:
+		if get_viewport().gui_get_focus_owner() is LineEdit: return
 		if event.physical_keycode >= KEY_1 and event.physical_keycode <= KEY_8:
 			choose_lane(event.physical_keycode - KEY_1)
 			return
 		match event.physical_keycode:
 			KEY_F2: show_abilities()
 			KEY_K: cycle_shooting_skill()
+			KEY_J: cycle_force()
 			KEY_SPACE: toggle_pause()
 			KEY_R: reload_weapon()
 			KEY_TAB: reset()
@@ -628,9 +701,12 @@ func refresh_ui():
 	var bounds: Dictionary = fx.reticle
 	var height_text := "枪口尚未对准"
 	if bounds.valid: height_text = "预计弹高 %.2f–%.2f m" % [bounds.height_min, bounds.height_max]
-	aim_status.text = "瞄准 %.2f · 上抬 %.1f° · 补偿 %.0f%%\n%s\n最近弹着：%s" % [character.aim_progress, character.weapon.recoil_offset_degrees.y, character.weapon.recoil_compensation*100, height_text, fx.last_impact]
+	var offset: Vector2 = character.weapon.recoil_offset_degrees+character.weapon.reaim_offset_degrees
+	var phase := "重新瞄准" if not character.weapon.recoil_active and offset.length() > .001 else ("过补偿" if character.weapon.recoil_overshoot_phase == "push" else "持枪")
+	aim_status.text = "瞄准 %.2f · 偏移 %.1f° · 补偿 %.0f%% · %s\n%s\n最近弹着：%s" % [character.aim_progress, offset.y, character.weapon.recoil_compensation*100, phase, height_text, fx.last_impact]
 	fire_status.text = "%s · %d 发 / %d 中 / %d 挡" % ["连射" if trigger_held else "待机", shots_fired, fx.total_hits, fx.total_blocked]
-	movement_label.text = "移速 %.2f m/s · 夹角 %d° · 躯干 %.1f°\n射击技能 %.0f / K · 切换 0 / 10 / 20 对比" % [velocity.length(), roundi(rad_to_deg(angle)), units[0].gait.twist_degrees, character.capabilities.skills.shooting]
+	movement_label.text = "移速 %.2f m/s · 夹角 %d°\n躯干 %.1f° · 技能 %.0f\n通用力量 %.0f N" % [velocity.length(), roundi(rad_to_deg(angle)), units[0].gait.twist_degrees, character.capabilities.skills.shooting, character.capabilities.values.force_n]
+	if controls: controls.refresh()
 
 func _draw():
 	draw_rect(MAP, Color("26322f"))

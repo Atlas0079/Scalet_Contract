@@ -1,16 +1,17 @@
 config_version=5
 
 [application]
-config/name="Scarlet Contract · 灰港档案室"
-run/main_scene="res://main.tscn"
+config/name="Scarlet Contract · 角色与射击测试场"
+run/main_scene="res://presentation/tactical/tactical.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [display]
-window/size/viewport_width=1440
-window/size/viewport_height=900
+window/size/viewport_width=2560
+window/size/viewport_height=1440
 window/size/window_width_override=1440
 window/size/window_height_override=900
-window/stretch/mode="disabled"
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
 window/subwindows/embed_subwindows=true
 
 [rendering]

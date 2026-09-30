@@ -7,7 +7,7 @@ const BODY_ATTRIBUTES := {
 	"android": ["muscle_fiber_output", "neural_speed", "fine_control", "senses", "circulation_efficiency", "tissue_stability"]}
 const MIND_ATTRIBUTES := {"human":["resolve","psi_potential"], "robot":[], "android":["resolve"]}
 const STATES := {"human":["fatigue"], "robot":["heat","energy","electronic_fault"], "android":["artificial_blood","metabolic_load","circulation_fault"]}
-const VALUE_KEYS := ["force_n","carry_capacity_kg","move_speed_mps","acceleration_mps2","turn_speed_radps","manipulation_rate","reload_rate","treatment_rate","repair_rate","hacking_rate","aim_gain_per_second","aim_unsettled_degrees","aim_settled_degrees","recoil_kick_scale","recoil_response_delay_seconds","recoil_compensation_build_seconds","recoil_control_acceleration","recoil_recovery_scale","view_distance_m","view_angle_rad","identification_rate","response_delay_seconds","em_protection","control_protection","circulation_recovery_scale","tissue_stability_scale","sync_current","psi_capacity","psi_execution_rate"]
+const VALUE_KEYS := ["force_n","carry_capacity_kg","move_speed_mps","acceleration_mps2","turn_speed_radps","manipulation_rate","reload_rate","treatment_rate","repair_rate","hacking_rate","aim_gain_per_second","aim_unsettled_degrees","aim_settled_degrees","recoil_kick_scale","recoil_response_delay_seconds","recoil_compensation_build_seconds","recoil_control_acceleration","recoil_support_scale","recoil_control_frequency","recoil_prediction_scale","recoil_overshoot_degrees","view_distance_m","view_angle_rad","identification_rate","response_delay_seconds","em_protection","control_protection","circulation_recovery_scale","tissue_stability_scale","sync_current","psi_capacity","psi_execution_rate"]
 
 
 static func freeze(value):
@@ -116,6 +116,40 @@ static func attributes(keys: Array, contributions: Array) -> Dictionary:
 	return result
 
 
+static func _shooting_capabilities(g: Dictionary, training: float, base: Dictionary, rules: Dictionary) -> Dictionary:
+	# Only unified inputs enter this function. Source corrections on these
+	# inputs have already settled; corrections on its outputs settle afterwards.
+	var result := {"aim_gain_per_second":0.0, "aim_unsettled_degrees":Vector2(45,45),
+		"aim_settled_degrees":Vector2(45,45), "recoil_kick_scale":4.0,
+		"recoil_response_delay_seconds":rules.recognition_seconds,
+		"recoil_compensation_build_seconds":rules.build_seconds,
+		"recoil_control_acceleration":0.0, "recoil_support_scale":sqrt(g.force_ratio),
+		"recoil_control_frequency":0.0, "recoil_prediction_scale":0.0, "recoil_overshoot_degrees":0.0}
+	if g.force_ratio <= 0 or g.execution <= 0 or g.perception <= 0 or g.control <= 0: return result
+	var t := clampf(training, 0.0, 1.0)
+	var strength := sqrt(g.force_ratio)
+	var execution := sqrt(g.execution)
+	var perception := sqrt(g.perception)
+	var brace := lerpf(rules.brace_efficiency[0],rules.brace_efficiency[1],t)
+	var recognition := lerpf(rules.recognition_factor[0],rules.recognition_factor[1],t)
+	var establishment := lerpf(rules.establishment_factor[0],rules.establishment_factor[1],t)
+	var correction := lerpf(rules.correction_factor[0],rules.correction_factor[1],t)
+	var settled := lerpf(rules.settled_precision_factor[0],rules.settled_precision_factor[1],t)
+	var unsettled := lerpf(rules.unsettled_precision_factor[0],rules.unsettled_precision_factor[1],t)
+	return {
+		"recoil_kick_scale":rules.reference_brace/(strength*brace),
+		"recoil_response_delay_seconds":g.response_delay_seconds+rules.recognition_seconds/(perception*recognition),
+		"recoil_compensation_build_seconds":rules.build_seconds/(execution*establishment),
+		"recoil_control_acceleration":rules.max_acceleration_degrees_per_second2*g.force_ratio*g.control,
+		"recoil_support_scale":strength,
+		"recoil_control_frequency":rules.return_frequency*execution*correction,
+		"recoil_prediction_scale":lerpf(rules.prediction_factor[0],rules.prediction_factor[1],t),
+		"recoil_overshoot_degrees":minf(rules.overshoot_max_degrees,rules.overshoot_degrees_per_force_surplus*maxf(0,g.force_ratio-1)*pow(1-t,2)),
+		"aim_gain_per_second":base.aim_gain_per_second*execution*perception*establishment,
+		"aim_unsettled_degrees":Vector2(base.aim_unsettled_degrees[0],base.aim_unsettled_degrees[1])/(execution*unsettled),
+		"aim_settled_degrees":Vector2(base.aim_settled_degrees[0],base.aim_settled_degrees[1])/(execution*settled)}
+
+
 static func evaluate(actor, explain := false) -> Dictionary:
 	var details: Array = []
 	var body := select_sources(actor.body_sources(), actor.ability_time, actor.parts_by_instance(), details)
@@ -164,15 +198,10 @@ static func evaluate(actor, explain := false) -> Dictionary:
 	var h: float = d*u*f_hand*c*q
 	var k: float = parameters.skill_factor.base + parameters.skill_factor.per_level*skills.shooting
 	var precision: float = h*k
-	var grip: float = sqrt(p*u*f_hand)*c*q*k
 	var values := {
 		"force_n":base.force_n*p*u*f_hand, "carry_capacity_kg":base.carry_capacity_kg*p*u*f_move,
 		"move_speed_mps":base.move_speed_mps*v*u*f_move, "acceleration_mps2":base.acceleration_mps2*v*u*f_move,
 		"turn_speed_radps":base.turn_speed_radps*d*u, "manipulation_rate":h, "reload_rate":precision,
-		"aim_gain_per_second":base.aim_gain_per_second*precision,
-		"aim_unsettled_degrees":Vector2(base.aim_unsettled_degrees[0],base.aim_unsettled_degrees[1])/precision if precision>0 else Vector2(45,45),
-		"aim_settled_degrees":Vector2(base.aim_settled_degrees[0],base.aim_settled_degrees[1])/precision if precision>0 else Vector2(45,45),
-		"recoil_kick_scale":1.0/grip if grip>0 else 4.0,"recoil_response_delay_seconds":parameters.recoil_control.response_delay_seconds/maxf(.1,precision),"recoil_compensation_build_seconds":parameters.recoil_control.build_seconds/maxf(.1,precision),"recoil_control_acceleration":parameters.recoil_control.max_acceleration_degrees_per_second2*grip,"recoil_recovery_scale":precision,
 		"view_distance_m":base.view_distance_m*s*f_sense,"view_angle_rad":deg_to_rad(actor.definition.view_angle_degrees),
 		"identification_rate":s*f_sense*c*q,"response_delay_seconds":base.response_delay_seconds/maxf(0.1,d*c*q)+(actor.control.get("latency",0.0) if actor.control_mode=="sia" else 0.0),
 		"em_protection":a.get("em_shielding",0.0)/100.0,"control_protection":a.get("control_security",0.0)/100.0 if species=="robot" else (1.0 if actor.control_mode=="sia" else 0.0),
@@ -185,6 +214,12 @@ static func evaluate(actor, explain := false) -> Dictionary:
 	var all_bonus: Array = body + control
 	for key in values:
 		if key in ["sync_current","sync_ceiling","sia_pain_scale"]: continue
+		values[key] = modified(values[key],all_bonus,"capability",key)
+	var shooting_inputs := {"force_ratio":values.force_n/base.force_n, "execution":values.manipulation_rate,
+		"perception":values.identification_rate, "control":c*q, "response_delay_seconds":values.response_delay_seconds}
+	var shooting := _shooting_capabilities(shooting_inputs,skills.shooting/SCData.catalog.skills.level.max,base,parameters.recoil_control)
+	for key in shooting:
+		values[key] = shooting[key]
 		if values[key] is Vector2:
 			values[key] = Vector2(clampf(modified(values[key].x,all_bonus,"capability",key),0,45),clampf(modified(values[key].y,all_bonus,"capability",key),0,45))
 		else: values[key] = modified(values[key],all_bonus,"capability",key)
@@ -192,7 +227,8 @@ static func evaluate(actor, explain := false) -> Dictionary:
 	values.recoil_kick_scale = clampf(values.recoil_kick_scale,0.25,4)
 	values.recoil_response_delay_seconds = maxf(.01,values.recoil_response_delay_seconds)
 	values.recoil_compensation_build_seconds = maxf(.01,values.recoil_compensation_build_seconds)
-	values.recoil_recovery_scale = clampf(values.recoil_recovery_scale,0,4)
+	values.recoil_prediction_scale = clampf(values.recoil_prediction_scale,0,1)
+	values.recoil_overshoot_degrees = clampf(values.recoil_overshoot_degrees,0,parameters.recoil_control.overshoot_max_degrees)
 	values.view_angle_rad = clampf(values.view_angle_rad,0,TAU)
 	values["move_angle_curve"] = actor.definition.movement_angle_curve.duplicate(true)
 	values.merge(parameters.aim.duplicate(true))
@@ -214,7 +250,7 @@ static func evaluate(actor, explain := false) -> Dictionary:
 	for key in values:
 		if values[key] is float: assert(is_finite(values[key]), "Non-finite ability: "+key)
 	var result := {"actor_id":actor.identity,"revision":actor.ability_revision+1,"evaluated_at":actor.ability_time,"values":values,"permissions":permissions,"reason_codes":reasons,"skills":skills}
-	if explain: result["explanation"] = {"sources":details,"attributes":a,"controller_attributes":mind,"body_functions":{"movement":f_move,"manipulation":f_hand,"vision":f_sense},"control_factor":c*q}
+	if explain: result["explanation"] = {"sources":details,"attributes":a,"controller_attributes":mind,"body_functions":{"movement":f_move,"manipulation":f_hand,"vision":f_sense},"control_factor":c*q,"shooting_inputs":shooting_inputs}
 	freeze(result)
 	return result
 

@@ -43,6 +43,7 @@ static func aim_width(actor) -> Vector2:
 
 static func advance_aim(actor, dt: float, tracking: bool, speed := 0.0, turn_rate_degrees := 0.0):
 	var spec: Dictionary = actor.capabilities.values
+	actor.weapon.reaim_tracking = tracking
 	actor.aim_clock += dt
 	var gain: float = spec.aim_gain_per_second if tracking and actor.capabilities.permissions.can_aim else -spec.idle_decay_per_second
 	actor.aim_progress = clampf(actor.aim_progress + dt * (gain - speed * spec.movement_loss_per_m - absf(turn_rate_degrees) * spec.turn_loss_per_degree), 0.0, 1.0)
@@ -55,61 +56,111 @@ static func reset_recoil(weapon: Dictionary):
 	weapon["recoil_burst_age"] = 0.0
 	weapon["recoil_since_shot"] = 1000.0
 	weapon["recoil_expected_impulse"] = Vector2.ZERO
+	weapon["recoil_active"] = false
+	weapon["recoil_overshoot_phase"] = "ready"
+	weapon["recoil_overshoot_elapsed"] = 0.0
+	weapon["recoil_overshoot_count"] = 0
+	weapon["recoil_overshoot_target"] = 0.0
+	weapon["reaim_offset_degrees"] = Vector2.ZERO
+	weapon["reaim_tracking"] = false
+
+
+static func stop_firing(actor):
+	var weapon: Dictionary = actor.weapon
+	if not weapon.recoil_active: return
+	# Preserve the visible direction while handing motion to aiming. Old
+	# recoil velocity/compensation never survives into the next burst.
+	var offset: Vector2 = weapon.recoil_offset_degrees + weapon.reaim_offset_degrees
+	var tracking: bool = weapon.reaim_tracking
+	reset_recoil(weapon)
+	weapon.reaim_offset_degrees = offset
+	weapon.reaim_tracking = tracking
+
+
+static func _advance_realignment(actor, dt: float):
+	var weapon: Dictionary = actor.weapon
+	if not weapon.reaim_tracking or not actor.capabilities.permissions.can_aim: return
+	var ability: Dictionary = actor.capabilities.values
+	var speed: float = ability.aim_gain_per_second * ability.realignment_degrees_per_progress
+	weapon.reaim_offset_degrees = weapon.reaim_offset_degrees.move_toward(Vector2.ZERO,speed*dt)
 
 
 static func advance_recoil(actor, dt: float):
-	var weapon:Dictionary=actor.weapon
-	var spec:Dictionary=weapon.definition.recoil
-	var control:Dictionary=SCData.catalog.ability_rules.recoil_control
-	var ability:Dictionary=actor.capabilities.values
-	if weapon.recoil_offset_degrees==Vector2.ZERO and weapon.recoil_velocity_degrees_per_second==Vector2.ZERO and weapon.recoil_compensation<.000001:
-		weapon.recoil_compensation=0.0
-		weapon.recoil_since_shot+=dt
-		return
-	var remaining:=dt
-	# Small bounded integration steps, independent of render frequency. Passive
-	# support is integrated analytically; active correction has a force limit.
-	while remaining>0.000000001:
-		var h:=minf(remaining,1.0/480.0)
-		remaining-=h
-		var gap:float=maxf(control.burst_gap_seconds,weapon.definition.fire_interval*1.5)
-		var continuing:bool=weapon.recoil_since_shot<gap
-		if continuing:
-			weapon.recoil_burst_age+=h
-			if weapon.recoil_burst_age>=ability.recoil_response_delay_seconds:
-				weapon.recoil_compensation=1-(1-weapon.recoil_compensation)*exp(-h/ability.recoil_compensation_build_seconds)
-		else:
-			weapon.recoil_compensation*=exp(-h/control.memory_decay_seconds)
-		var angle:Vector2=weapon.recoil_offset_degrees
-		var velocity:Vector2=weapon.recoil_velocity_degrees_per_second
-		var expectation:Vector2=weapon.recoil_expected_impulse/weapon.definition.fire_interval if weapon.recoil_since_shot<weapon.definition.fire_interval else Vector2.ZERO
-		var frequency:float=control.return_frequency
-		var correction:Vector2=-frequency*frequency*angle-2*frequency*velocity-expectation
-		var limit:float=ability.recoil_control_acceleration
-		correction=correction.clamp(Vector2(-limit,-limit),Vector2(limit,limit))*weapon.recoil_compensation
-		var passive:float=spec.passive_return_frequency*maxf(.25,ability.recoil_recovery_scale)
-		var equilibrium:=correction/(passive*passive)
-		var relative:=angle-equilibrium
-		var response:=velocity+passive*relative
-		var decay:=exp(-passive*h)
-		angle=equilibrium+(relative+response*h)*decay
-		velocity=(velocity-passive*response*h)*decay
-		var bounds:=pair(spec.max_offset_degrees)
-		for axis in range(2):
-			if absf(angle[axis])>bounds[axis]:
-				angle[axis]=clampf(angle[axis],-bounds[axis],bounds[axis])
-				if velocity[axis]*angle[axis]>0: velocity[axis]=0
-		if not continuing and angle.length()<.00001 and velocity.length()<.00001:
-			angle=Vector2.ZERO
-			velocity=Vector2.ZERO
-		weapon.recoil_offset_degrees=angle
-		weapon.recoil_velocity_degrees_per_second=velocity
-		weapon.recoil_since_shot+=h
+	var weapon: Dictionary = actor.weapon
+	var control: Dictionary = SCData.catalog.ability_rules.recoil_control
+	if not actor.capabilities.permissions.can_aim: stop_firing(actor)
+	var remaining := dt
+	var gap: float = maxf(control.burst_gap_seconds,weapon.definition.fire_interval*1.5)
+	while remaining > 0.000000001:
+		if not weapon.recoil_active:
+			_advance_realignment(actor,remaining)
+			weapon.recoil_since_shot += remaining
+			return
+		if weapon.recoil_since_shot >= gap-0.000000001:
+			stop_firing(actor)
+			continue
+		var h := minf(minf(remaining,1.0/480.0),gap-weapon.recoil_since_shot)
+		_advance_recoil_step(actor,h,control)
+		weapon.recoil_since_shot += h
+		remaining -= h
+
+
+static func _advance_recoil_step(actor, dt: float, control: Dictionary):
+	var weapon: Dictionary = actor.weapon
+	var ability: Dictionary = actor.capabilities.values
+	weapon.recoil_burst_age += dt
+	if weapon.recoil_burst_age >= ability.recoil_response_delay_seconds:
+		weapon.recoil_compensation = 1-(1-weapon.recoil_compensation)*exp(-dt/ability.recoil_compensation_build_seconds)
+		if weapon.recoil_overshoot_phase == "ready":
+			weapon.recoil_overshoot_target = ability.recoil_overshoot_degrees
+			weapon.recoil_overshoot_phase = "push" if weapon.recoil_overshoot_target > 0 else "done"
+			if weapon.recoil_overshoot_phase == "push": weapon.recoil_overshoot_count += 1
+	var target := Vector2.ZERO
+	var effort: float = weapon.recoil_compensation
+	if weapon.recoil_overshoot_phase == "push":
+		target.y = -weapon.recoil_overshoot_target
+		effort = minf(1.0,effort*(1+weapon.recoil_overshoot_target*control.overshoot_effort_per_degree))
+		weapon.recoil_overshoot_elapsed += dt
+		if weapon.recoil_overshoot_elapsed >= control.overshoot_push_seconds:
+			weapon.recoil_overshoot_phase = "return"
+	var angle: Vector2 = weapon.recoil_offset_degrees
+	var velocity: Vector2 = weapon.recoil_velocity_degrees_per_second
+	var prediction: Vector2 = weapon.recoil_expected_impulse/weapon.definition.fire_interval*ability.recoil_prediction_scale if weapon.recoil_since_shot < weapon.definition.fire_interval else Vector2.ZERO
+	var frequency: float = ability.recoil_control_frequency
+	var correction := -frequency*frequency*(angle-target)-2*frequency*velocity-prediction
+	var limit: float = ability.recoil_control_acceleration
+	# The one-time downward target cannot bypass the same physical force limit.
+	correction = correction.clamp(Vector2(-limit,-limit),Vector2(limit,limit))*effort
+	var support: float = weapon.definition.recoil.support_frequency*ability.recoil_support_scale
+	if support > 0:
+		var equilibrium := correction/(support*support)
+		var relative := angle-equilibrium
+		var response := velocity+support*relative
+		var decay := exp(-support*dt)
+		angle = equilibrium+(relative+response*dt)*decay
+		velocity = (velocity-support*response*dt)*decay
+	else:
+		angle += velocity*dt+correction*dt*dt*.5
+		velocity += correction*dt
+	if weapon.recoil_overshoot_phase == "return" and angle.y >= 0:
+		weapon.recoil_overshoot_phase = "done"
+	# After the single excursion, correction may reach the aim point but
+	# cannot generate another downward crossing or an oscillating spring.
+	if weapon.recoil_overshoot_phase in ["ready","done"] and angle.y < 0 and weapon.recoil_offset_degrees.y >= 0:
+		angle.y = 0.0
+		velocity.y = maxf(0.0,velocity.y)
+	var bounds := pair(weapon.definition.recoil.max_offset_degrees)
+	for axis in range(2):
+		if absf(angle[axis]) > bounds[axis]:
+			angle[axis] = clampf(angle[axis],-bounds[axis],bounds[axis])
+			if velocity[axis]*angle[axis] > 0: velocity[axis] = 0
+	weapon.recoil_offset_degrees = angle
+	weapon.recoil_velocity_degrees_per_second = velocity
 
 
 static func error_envelope(actor) -> Dictionary:
 	var weapon: Dictionary = actor.weapon
-	return {"center": weapon.recoil_offset_degrees,
+	return {"center": weapon.recoil_offset_degrees+weapon.reaim_offset_degrees,
 		"radius": aim_width(actor) + weapon_accuracy(weapon) + pair(weapon.ammunition.accuracy_degrees)}
 
 
@@ -131,7 +182,7 @@ static func holding_error(actor) -> Vector2:
 	# burst sway: the weapon's angle/velocity now explain burst instability.
 	var t:float=actor.aim_clock/actor.capabilities.values.drift_interval_seconds
 	var drift:=Vector2(drift_sample(t,actor.id+17),drift_sample(t*.79,actor.id+491))
-	return drift*aim_width(actor)+actor.weapon.recoil_offset_degrees
+	return drift*aim_width(actor)+actor.weapon.recoil_offset_degrees+actor.weapon.reaim_offset_degrees
 
 
 static func mechanical_error(weapon: Dictionary, rng: RandomNumberGenerator) -> Vector2:
@@ -150,8 +201,10 @@ static func record_shot(actor, rng: RandomNumberGenerator, consume_ammo := true)
 	weapon.shots_fired += 1
 	var spec: Dictionary = weapon.definition.recoil
 	var impulse:=pair(spec.impulse_degrees_per_second)*float(actor.capabilities.values.recoil_kick_scale)
-	var control:Dictionary=SCData.catalog.ability_rules.recoil_control
-	if weapon.recoil_since_shot>maxf(control.burst_gap_seconds,weapon.definition.fire_interval*1.5): weapon.recoil_burst_age=0.0
+	if not weapon.recoil_active:
+		weapon.recoil_offset_degrees += weapon.reaim_offset_degrees
+		weapon.reaim_offset_degrees = Vector2.ZERO
+		weapon.recoil_active = true
 	var applied:=Vector2(rng.randf_range(-impulse.x,impulse.x),impulse.y)
 	weapon.recoil_velocity_degrees_per_second+=applied
 	weapon.recoil_expected_impulse=Vector2(0,impulse.y)

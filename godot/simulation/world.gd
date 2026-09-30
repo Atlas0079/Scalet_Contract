@@ -343,9 +343,11 @@ func update_aim(a, dt: float, tracking: bool, heading = null):
 
 func combat(a, dt: float):
 	if not a.alive or a.stunned > 0 or a.current_action != null:
+		SCCombat.stop_firing(a)
 		update_aim(a, dt, false)
 		return
 	if planner.micro_controls_motion(a):
+		SCCombat.stop_firing(a)
 		a.reaction = 0.0
 		a.aim_target_id = null
 		a.fire_reason = "微操优先"
@@ -355,12 +357,14 @@ func combat(a, dt: float):
 		a.queue[0].target_id if not a.queue.is_empty() and a.queue[0].kind == "attack" else null
 	)
 	if a.fire_mode == "hold_fire" and explicit == null:
+		SCCombat.stop_firing(a)
 		update_aim(a, dt, false)
 		return
 	var candidates = visible_targets(a)
 	if explicit != null:
 		candidates = candidates.filter(func(t): return t.id == explicit)
 	if candidates.is_empty():
+		SCCombat.stop_firing(a)
 		a.reaction = 0.0
 		a.aim_target_id = null
 		a.fire_reason = "警戒"
@@ -378,23 +382,29 @@ func combat(a, dt: float):
 	)
 	var target = candidates[0]
 	if a.aim_target_id != target.id:
+		SCCombat.stop_firing(a)
 		a.aim_target_id = target.id
 		a.reaction = 0.0
 		a.aim_progress *= a.capabilities.values.switch_retention
 	a.reaction += dt
 	if a.mode != "standing":
+		SCCombat.stop_firing(a)
 		update_aim(a, dt, false)
 		return
 	var desired = (target.position - a.position).angle()
 	face(a, desired, dt)
 	update_aim(a, dt, true, desired)
 	if absf(angle_difference(a.facing, desired)) > 0.087267:
+		SCCombat.stop_firing(a)
 		return
 	if a.reaction < a.reaction_seconds or a.aim_progress < a.capabilities.values.minimum_fire_progress:
+		SCCombat.stop_firing(a)
 		return
 	if a.position.distance_to(target.position) > a.weapon.definition.range:
+		SCCombat.stop_firing(a)
 		return
 	if a.weapon.ammo == 0:
+		SCCombat.stop_firing(a)
 		if a.weapon.reserve_ammo > 0:
 			start_action(
 				a,
@@ -406,9 +416,8 @@ func combat(a, dt: float):
 		else:
 			a.fire_reason = "弹药耗尽"
 		return
-	if a.weapon.cooldown > 0:
-		return
 	if grid.raycast(a.position, target.position, a.muzzle_height, target.height * target.definition.chest_height_fraction, "projectile")[1] != null:
+		SCCombat.stop_firing(a)
 		a.fire_reason = "射线被遮挡"
 		return
 	for other in actors:
@@ -416,10 +425,14 @@ func combat(a, dt: float):
 			continue
 		var distance = SCCombat.segment_distance(other.position, a.position, target.position)
 		if distance[1] > 0 and distance[1] < 1 and distance[0] <= other.radius + 0.1:
+			SCCombat.stop_firing(a)
 			a.fire_reason = "友军挡线"
 			return
 	a.fire_reason = "交战"
-	if not a.capabilities.permissions.can_aim: return
+	if not a.capabilities.permissions.can_aim:
+		SCCombat.stop_firing(a)
+		return
+	if a.weapon.cooldown > 0: return
 	var event = SCCombat.create_shot(a, target.position, target.height * target.definition.chest_height_fraction, rng)
 	SCSkills.award(a,"shooting",SCData.catalog.skills.experience.shooting_per_shot,"%s:shot:%d:%d" % [a.identity,tick_index,a.weapon.shots_fired])
 	shots.append(event)
@@ -498,6 +511,7 @@ func start_action(
 			return "不在门边"
 		if options.get("door") != null and edge.interactive_id != options.door:
 			return "门目标不匹配"
+	SCCombat.stop_firing(a)
 	skill_registry.sequence += 1
 	a.current_action = {
 		"type": kind,

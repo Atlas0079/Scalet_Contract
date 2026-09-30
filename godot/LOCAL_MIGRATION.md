@@ -1,4 +1,6 @@
-# Godot 迁移交接
+# Godot 运行说明与迁移验证
+
+当前入口进入角色与射击测试场，运行状态以 [配置说明](LOCAL_CONFIGURATION.md)为准。场景、角色、滤镜与 UI 的设计统一见 [美学方向](../docs/art-direction.md)。下面的迁移测量对应其注明日期的实际运行，不表示当前正式战场或新美学已经完成。
 
 验证日期：2026-09-28。使用本机 Godot `4.7.1.stable.official.a13da4feb`。
 
@@ -7,18 +9,16 @@
 - 根目录 `Start Demo.cmd` / `Start Godot.cmd`：运行新的 Godot 项目。首次运行会导入资源。
 - `Open Godot Editor.cmd`：在 Godot 编辑器中打开工程。
 - `godot/project.godot`：可直接从 Godot 项目管理器导入。
-- `Start Pygame.cmd`：保留原来的 Pygame 启动流程，用于对照。
 - 引擎实际位于 `C:\MyResearch\Godot_v4.7.1-stable_win64.exe\Godot_v4.7.1-stable_win64.exe`；用户提供的上一级路径是文件夹。启动器支持该相邻目录，也支持环境变量 `GODOT_BIN` 指定可执行文件。
 
 ## 迁移范围
 
-运行时全部使用 GDScript，不启动 Python 或 Pygame。保留灰港地图、A/B/C 配置、四人小队、十名敌人、原有数值与声音素材。
+运行时使用 GDScript。当前主场景为 `presentation/tactical/tactical.tscn`，以角色、动作、能力与射击验证为中心。
 
 - 模拟层位于 `simulation/`，对应原来的世界、地图、角色、移动、战斗、感知、命令、房间任务及物资模块。
 - `data/greyport.json` 与 `data/catalog.json` 存放关卡、物品、武器和人体定义。这些文件是原生运行数据，不是运行时转换层。
-- 界面位于 `presentation/`，使用 Godot Control 控件及原生绘制；地图扫描线使用独立 CanvasItem shader，菜单不受滤镜影响。
-- 保留暂停/倍速、选择/编组、移动/定向/警戒/开火、自动换弹、微操接管、同步、突入草稿/站位/朝向/撤销/恢复、伤势与治疗、闪光、搜索/预约/改派/拿取/换装/放下、尸体、胜利后继续搜刮等流程。
-- 旧 `combat_demo` 未删除或改写。本次只将默认启动入口切换到 Godot，并增加独立旧版入口。
+- 角色与测试场表现位于 `presentation/tactical/`，共享能力说明位于 `presentation/interface.gd`。
+- 战斗模拟逻辑保留，完整战场与正式界面的接入范围以配置说明为准。
 
 ## 验证
 
@@ -34,8 +34,7 @@
 
 ## 边界
 
-- 本轮完成引擎和玩法迁移；抽象视觉仍是可继续设计的基础版本，未实施完整美术精修，也未引入外部素材包。
+- 当前入口可验证角色与射击；正式场景和界面仍需按统一美学设计建设。
 - 使用 Godot 原生随机数发生器。同一配置在 Godot 内可重现，但不保证逐发随机结果与 Python 版本一致。
 - 已准备 Windows 导出配置并验证 PCK。当前机器未发现对应导出模板，因此没有声称生成独立 Windows 游戏 EXE；现有启动器使用用户已安装的 Godot。安装对应模板后可从编辑器导出。
-- F12 截图写入 Godot `user://screenshots`，游戏状态栏显示实际保存路径。
 - 尚未做长期游玩平衡测试；未新增撤离、仓库、招募等后续系统。

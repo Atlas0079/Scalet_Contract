@@ -9,6 +9,11 @@
     "test_carbine",
     "rifle"
   ],
+  "force_choices": [
+    {"label": "弱", "multiplier": 0.3},
+    {"label": "标准", "multiplier": 1.0},
+    {"label": "强", "multiplier": 2.0}
+  ],
   "target": {
     "radius_m": 0.23,
     "height_m": 1.8,

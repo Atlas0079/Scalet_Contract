@@ -1,8 +1,9 @@
-# 角色属性、技能与能力架构规范 v3
+# 角色属性、技能与能力架构规范 v4
 
-日期：2026-09-29。状态：确定的实现规范；当前游戏尚未完成此规范的迁移。
-2026-09-30 按用户要求纳入 main；文件名保留以维持现有文档链接。v3 完整替代 v2，是角色属性来源、技能成长、能力推导与控制归属的唯一设计依据。
-本版新增同步率与机师道具规则，并修订技能渠道。第 5.4 节灵能经验明确属于已记录、未启用的规划机制；它不以临时奖励公式冒充已定稿玩法。
+日期：2026-09-30。状态：确定的实现规范；角色基础架构已接入，完整 SIA 与后续玩法尚未完成。
+2026-09-30 按用户要求纳入 main；文件名保留以维持现有文档链接。本规范是角色属性来源、技能成长、能力推导与控制归属的唯一设计依据。
+规范包含同步率与机师道具规则及技能渠道。第 5.4 节灵能经验明确属于已记录、未启用的规划机制；它不以临时奖励公式冒充已定稿玩法。
+v4 按用户确认修订多维射击能力、一次过补偿及停火重新瞄准，具体函数见第 13、16 节。它替代 v3 的相关射击公式，其他角色与 SIA 契约不变。
 
 ## 1. 强制边界
 
@@ -297,12 +298,14 @@ SIA 额外控制系数 Q=(0.5+0.025×E_sia_control)×link_quality×sync_current�
 | treatment_rate | 无量纲，>=0 | H×K(medicine) |
 | repair_rate | 无量纲，>=0 | H×K(repair) |
 | hacking_rate | 无量纲，>=0 | H×K(hacking) |
-| aim_gain_per_second | /s，>=0 | 1.25×H×K_shoot |
-| aim_unsettled_degrees | [水平°,垂直°]，各轴 [0,45] | [6,5]/(H×K_shoot) |
-| aim_settled_degrees | 同上，且不超过未稳定误差 | [0.2,0.2]/(H×K_shoot) |
-| recoil_kick_scale | 无量纲，[0.25,4] | 1/(sqrt(P×U×f_hand)×C×Q×K_shoot) |
-| recoil_instability_scale | 无量纲，[0.25,4] | 1/(H×K_shoot) |
-| recoil_recovery_scale | 无量纲，[0,4] | H×K_shoot |
+| aim_gain_per_second | /s，>=0 | 第 16 节的执行、感知与训练推导 |
+| aim_unsettled_degrees | [水平°,垂直°]，各轴 [0,45] | 第 16 节的多维射击公式 |
+| aim_settled_degrees | 同上，且不超过未稳定误差 | 第 16 节的多维射击公式 |
+| recoil_kick_scale | 无量纲，[0.25,4] | 第 16 节的多维射击公式 |
+| recoil_support_scale | 无量纲，>=0 | sqrt(B)，仅连射中支撑，不用于停火恢复 |
+| recoil_control_frequency | /s，>=0 | 第 16 节的精细执行与训练推导 |
+| recoil_prediction_scale | [0,1] | 第 16 节的后坐预估能力 |
+| recoil_overshoot_degrees | °，[0,6]（当前配置） | 第 16 节的力量与训练不匹配幅度 |
 | view_distance_m | m，>=0 | 12×S×f_sense |
 | view_angle_rad | rad，[0,2π] | 当前身体配置的视角，不由技能扩大 |
 | identification_rate | 无量纲，>=0 | S×f_sense×C×Q |
@@ -323,7 +326,7 @@ move_angle_curve 使用身体配置，输入角度 [0,180] 度，输出速度倍
 minimum_fire_progress=0.55 属于射击决策参数，独立于基础属性与技能；测试场手动扳机不受 AI 开火阈值限制。
 防护系数 0 表示没有该项防护加成，不表示存在攻击面，也不表示免疫。EMP 是否能作用于某部件由部件电子标签决定；控制权争夺只对有效 SIA 控制关系开放。
 circulation_recovery_scale 乘在状态系统声明的基础恢复速率上；tissue_stability_scale 将其声明的基础循环损伤增量除以 max(0.1,该系数)。这两条转换在状态生成处只应用一次。
-后坐角色修正分别作用于枪械 kick、instability_per_shot 和 recovery；武器最大角度上限仍由武器定义决定。
+后坐按第 16 节结算；不存在逐发 instability 散布或停火被动回正。武器最大角度上限仍由武器定义决定。
 枪械与弹药自身的 accuracy_degrees 完全独立，角色能力只影响角色瞄准误差及后坐控制。
 
 权限字段固定为 can_move、can_operate、can_aim、can_use_psionics：
@@ -500,19 +503,19 @@ D. 压力事件、EMP、入侵、人造血和灵能玩法按各自功能任务�
 
 文档、新增测试、验证记录按仓库约定仅保留本地。后续代码提交不包含这些辅助文件。
 
-## 13. 冲量后坐与主动补偿（试验版已实现）
+## 13. 冲量后坐与主动补偿（2026-09-30 修订）
 
 每发先读取发射时实际枪口并生成子弹，然后增加角速度冲量；本发不受自己的后坐影响。下一发继承前一发留下的角度与角速度。不得在发射时重新随机生成“连射不稳定角”。
 
-运行状态随当前武器保存：角度 θ、角速度 v、补偿建立程度 α、连射经过时间、距上次开火时间、预期单发冲量。换枪使用新武器状态；普通停止射击不清除运动，恢复由时间推进。测试场重置显式清空这些状态。
+运行状态随当前武器保存：角度 θ、角速度 v、补偿建立程度 α、连射经过时间、距上次开火时间、预期单发冲量、一次过补偿阶段及重新瞄准偏移。换枪使用新武器状态。停火将当前偏移转移到重新瞄准状态，并清除本段后坐、补偿与过补偿状态；不得使可见枪口瞬间跳回目标。
 
-- 武器提供 impulse_degrees_per_second [水平随机冲量上限, 垂直冲量]、passive_return_frequency、max_offset_degrees。
-- 角色能力提供 recoil_kick_scale、recoil_recovery_scale、recoil_response_delay_seconds、recoil_compensation_build_seconds、recoil_control_acceleration。
-- 初始冲量倍率为 1/grip，延迟为 0.25/max(0.1,precision) 秒，建立时间为 0.35/max(0.1,precision) 秒，控制加速度上限为 180×grip 度/秒²；基准常量配置在 characters.rules.recoil_control，最终来源修正仍走统一能力规则。
-- 无瞄准权限时主动控制加速度为零。基础支撑频率 w=武器 passive_return_frequency×max(0.25,recoil_recovery_scale)。其作用为 -w²θ-2wv，不会主动产生周期振荡。
-- 经过反应延迟后，α 以配置时间常数指数趋近 1。主动纠正加速度为 α×clamp(-f²θ-2fv-预期冲量/射击间隔, ±控制上限)，f 由 return_frequency 配置。
-- 预期冲量的水平分量为零，垂直分量使用当前单发冲量；只在距上发时间小于射击间隔时应用预期抵消。既抵消后续射击趋势，也追回已经积累的偏移。
-- 超过 max(burst_gap_seconds,射击间隔×1.5) 未射击后，补偿记忆以 memory_decay_seconds 为时间常数衰减；新连射重新计反应时间，同时保留尚未消退的部分适应。
+- 武器提供 impulse_degrees_per_second [水平随机冲量上限, 垂直冲量]、support_frequency、max_offset_degrees；support_frequency 仅在连射中表示身体支撑。
+- 角色能力按第 16 节输出，射击层不得读取种族属性或技能。
+- 无瞄准权限时主动控制加速度为零。支撑频率 w=武器 support_frequency×recoil_support_scale；仅在连射中积分。
+- 经过反应延迟后，α 以配置时间常数指数趋近 1。主动纠正请求为 -f²(θ-目标偏移)-2fv-预估比例×预期冲量/射击间隔；整项先限制在身体控制上限，再乘 α。f 为通用 recoil_control_frequency。
+- 过补偿只在本段首次开始纠正时启动。力量高于基准且训练不足时，短暂将纠正目标下移；持续时间结束后回到零目标。恢复穿越零点后关闭本段负向越界，禁止重复过补偿。全部运动经过同一力度上限，不能直接向弹道添加下压角度。
+- 明确松开扳机、无合法交战目标、动作中断或换弹时立即停火。没有扳机事件的调用方以 max(burst_gap_seconds,射击间隔×1.5) 作为停止射击的安全判定。
+- 停火后只有重新瞄准：偏移按 aim_gain_per_second×realignment_degrees_per_progress 的角速度有限时间移向零；暂停不推进。再次提前开火继承剩余重新瞄准偏移，而不是瞬间对准。
 - 单次积分步长不超过 1/480 秒，基础临界阻尼用解析式推进，主动作用在每个小步内限幅。角度达到武器界限时截断向外角速度，禁止无界积累。
 
 当前试验卡宾枪每发冲量 [3.6,13] 度/秒，频率 4/秒，偏移界限 [12,18] 度。射速、弹速未改。默认技能 10 的基准测试中，前几发上跳，建立补偿后接近目标高度；控制能力不足或武器冲量过强时不保证压回。
@@ -537,3 +540,32 @@ C/D 的完整 SIA 连接管理、配对成长、疼痛反馈、基地用药与�
 姿态层与第 13 节的冲量后坐状态共用枪口方向；基础技能与来源权重保持不变。
 
 持枪动作修正：目标准星固定在意图目标；范围覆盖所有持枪相位与机械散布，不跟随单个瞬时枪口。持枪误差仅由双臂与枪承担，稳定躯干和头部不参与周期晃动；瞄准待机动画固定取样。射击受力动作和技能/能力推导保持原职责。
+
+## 16. 多维射击能力函数（2026-09-30）
+
+本节替代第 8 节旧的瞄准/后坐公式及第 13 节旧版 grip/precision 共用乘数。现有换弹及其他操作公式不变。
+
+通用输入先完成 capability 来源修正：B=force_n/base.force_n，H=manipulation_rate，O=identification_rate，R=response_delay_seconds。C_eff=C×Q 是种族转换后的控制有效性；T=有效 shooting/技能等级上限。R 已包含 SIA 延迟，不得再次加链路延迟。
+SCAbilityRules._shooting_capabilities 只使用这些统一输入，不按种族分支。派生后再结算各射击输出自己的 capability 修正一次。没有力量、执行、感知或有效控制时禁止瞄准，不用极小正数伪装动作可用。
+
+默认函数如下，全部常量仅保存于 characters.rules.recoil_control / rules.base / rules.aim：
+
+| 通用输出 | 默认公式 |
+| --- | --- |
+| recoil_kick_scale | clamp(0.85/(sqrt(B)×(0.7+0.3T)),0.25,4) |
+| recoil_response_delay_seconds | R+0.12/(sqrt(O)×(0.4+1.2T)) |
+| recoil_compensation_build_seconds | 0.35/(sqrt(H)×(0.7+0.6T)) |
+| recoil_control_acceleration | 180×B×C_eff；技能不提高此上限 |
+| recoil_support_scale | sqrt(B)；不用于停火回正 |
+| recoil_control_frequency | 8×sqrt(H)×(0.75+0.5T) |
+| recoil_prediction_scale | 0.2+0.8T |
+| recoil_overshoot_degrees | min(6,4×max(0,B-1)×(1-T)²) |
+| aim_gain_per_second | 1.25×sqrt(H×O)×(0.7+0.6T) |
+| aim_unsettled_degrees | [6,5]/(sqrt(H)×(0.8+0.4T)) |
+| aim_settled_degrees | [0.2,0.2]/(sqrt(H)×(0.6+0.8T)) |
+
+一次过补偿的下移目标最多持续 overshoot_push_seconds（默认 0.65 s），且实际幅度受物理控制上限、当时偏移、射速及冲量影响；该能力是目标幅度，不保证一定能达到。高力量高手不产生该动作，弱力量高手仍可能无法压住武器。
+该阶段的用力建立比例为 min(1,α×(1+过补偿目标角度×overshoot_effort_per_degree))；默认 overshoot_effort_per_degree=0.5/°。它表达开始纠正时用力过猛，但仍不能突破身体加速度上限。阶段结束后恢复普通 α，不降低阻尼来制造周期振荡。
+重新瞄准角速度为 aim_gain_per_second×realignment_degrees_per_progress（默认 90 °），仅 tracking 且允许瞄准时推进。没有目标时保留偏移，重新获得目标后再对准。重新开火继承当前位置。本段过补偿在停火后才重新允许发生。
+
+验收覆盖力量/训练交叉、感知与执行变化、通用力量来源向后坐传播、一次过补偿不重复、强武器无法被预估绕过上限、停火不跳变并有限时间重新瞄准、提前开火继承偏移、显式松扳机与正式战斗中断、三种族相同能力产生相同射击结果以及不同帧率一致性。

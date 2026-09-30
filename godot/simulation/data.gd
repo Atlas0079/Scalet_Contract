@@ -52,6 +52,14 @@ static func ensure_valid(tree: SceneTree) -> bool:
 				problems.append("greyport.json.unit_templates.%s: unknown unit" % key)
 	if not catalog.units.has(study.get("unit", "")):
 		problems.append("tactical_study.json.unit: unknown unit")
+	if not study.get("force_choices") is Array or study.force_choices.is_empty():
+		problems.append("tactical_study.force_choices: expected nonempty array")
+	else:
+		var standard := false
+		for choice in study.force_choices:
+			if fields(choice,{"label":"string","multiplier":"positive"},"tactical_study.force_choices",problems):
+				if is_equal_approx(choice.multiplier,1.0): standard = true
+		if not standard: problems.append("tactical_study.force_choices: missing standard force")
 	for pair in [["character_choices", "characters"], ["weapon_choices", "weapons"]]:
 		if not study.get(pair[0]) is Array or study[pair[0]].is_empty():
 			problems.append("tactical_study.json.%s: expected nonempty array" % pair[0])
@@ -146,7 +154,7 @@ static func validate(c: Dictionary) -> PackedStringArray:
 		validate_pair(w.accuracy_degrees, "weapons." + id + ".accuracy_degrees", p, 45.0)
 		for attachment in w.attachments:
 			if not attachment is String or not c.attachments.has(attachment): p.append("weapons." + id + ": unknown attachment")
-		if fields(w.recoil, {"impulse_degrees_per_second":"array", "max_offset_degrees":"array", "passive_return_frequency":"positive"}, "weapons." + id + ".recoil", p):
+		if fields(w.recoil, {"impulse_degrees_per_second":"array", "max_offset_degrees":"array", "support_frequency":"positive"}, "weapons." + id + ".recoil", p):
 			for key in ["impulse_degrees_per_second", "max_offset_degrees"]:
 				validate_pair(w.recoil[key], "weapons." + id + ".recoil." + key, p, 1000.0 if key=="impulse_degrees_per_second" else 89.0)
 		fields(w.item, {"id":"string", "name":"string", "mass":"nonnegative"}, "weapons." + id + ".item", p)
@@ -200,7 +208,15 @@ static func validate_skill_xp(xp: Dictionary, path: String, skills: Dictionary, 
 static func validate_ability_rules(c: Dictionary, p: PackedStringArray):
 	var rule: Dictionary = c.ability_rules
 	if fields(rule,{"base":"dict","aim":"dict","state":"dict","skill_factor":"dict","sia_factor":"dict","recoil_control":"dict"},"ability_rules",p):
-		fields(rule.recoil_control,{"response_delay_seconds":"positive","build_seconds":"positive","max_acceleration_degrees_per_second2":"positive","return_frequency":"positive","memory_decay_seconds":"positive","burst_gap_seconds":"positive"},"ability_rules.recoil_control",p)
+		var recoil_schema := {"recognition_seconds":"positive", "build_seconds":"positive", "max_acceleration_degrees_per_second2":"positive", "return_frequency":"positive", "burst_gap_seconds":"positive", "reference_brace":"positive", "overshoot_degrees_per_force_surplus":"nonnegative", "overshoot_max_degrees":"nonnegative", "overshoot_effort_per_degree":"nonnegative", "overshoot_push_seconds":"positive"}
+		var factors := ["brace_efficiency", "recognition_factor", "establishment_factor", "correction_factor", "prediction_factor", "settled_precision_factor", "unsettled_precision_factor"]
+		for key in factors: recoil_schema[key] = "array"
+		if fields(rule.recoil_control,recoil_schema,"ability_rules.recoil_control",p):
+			for key in factors:
+				var path := "ability_rules.recoil_control." + str(key)
+				if validate_pair(rule.recoil_control[key],path,p,10.0):
+					if (key != "prediction_factor" and rule.recoil_control[key][0] <= 0) or rule.recoil_control[key][0] > rule.recoil_control[key][1]: p.append(path+": expected increasing factors; divisors must be positive")
+			if rule.recoil_control.prediction_factor[1] > 1: p.append("ability_rules.recoil_control.prediction_factor: cannot exceed 1")
 		var base_schema := {}
 		for key in ["force_n","carry_capacity_kg","move_speed_mps","acceleration_mps2","turn_speed_radps","view_distance_m","response_delay_seconds","aim_gain_per_second"]: base_schema[key] = "positive"
 		if fields(rule.base,base_schema,"ability_rules.base",p):
@@ -209,7 +225,7 @@ static func validate_ability_rules(c: Dictionary, p: PackedStringArray):
 			if first and second:
 				for axis in range(2):
 					if rule.base.aim_settled_degrees[axis]>rule.base.aim_unsettled_degrees[axis]: p.append("ability_rules: settled error exceeds unsettled error")
-		fields(rule.aim,{"curve_power":"positive","movement_loss_per_m":"nonnegative","turn_loss_per_degree":"nonnegative","switch_retention":"unit","idle_decay_per_second":"nonnegative","drift_interval_seconds":"positive","minimum_fire_progress":"unit"},"ability_rules.aim",p)
+		fields(rule.aim,{"curve_power":"positive","movement_loss_per_m":"nonnegative","turn_loss_per_degree":"nonnegative","switch_retention":"unit","idle_decay_per_second":"nonnegative","drift_interval_seconds":"positive","minimum_fire_progress":"unit","realignment_degrees_per_progress":"positive"},"ability_rules.aim",p)
 		fields(rule.state,{"fatigue_loss":"unit","heat_loss":"unit","energy_full_threshold":"positive","metabolic_loss":"unit","stress_loss":"unit","pain_loss":"unit"},"ability_rules.state",p)
 		for key in ["skill_factor","sia_factor"]: fields(rule[key],{"base":"positive","per_level":"nonnegative"},"ability_rules."+key,p)
 	var skills: Dictionary = c.skills

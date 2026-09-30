@@ -6,10 +6,11 @@ const SCALES := [25, 50, 100, 200, 500]
 var scale_index := 2
 var effects: RefCounted
 var scale_button: Button
+var clear_button: Button
 
 func _ready():
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	var clear_button := Button.new()
+	clear_button = Button.new()
 	clear_button.text = "清空弹着 / 新一组"
 	clear_button.position = Vector2(16, 674)
 	clear_button.size = Vector2(164, 36)
@@ -22,21 +23,31 @@ func _ready():
 		scale_index = (scale_index + 1) % SCALES.size()
 		update_scale())
 	add_child(scale_button)
+	resized.connect(update_layout)
+	update_layout()
 	update_scale()
+
+func update_layout():
+	var factor := size.x / 364.0
+	for node in [clear_button, scale_button]: node.scale = Vector2.ONE * factor
+	clear_button.position = Vector2(16, 674) * factor
+	scale_button.position = Vector2(188, 674) * factor
+	queue_redraw()
 
 func update_scale():
 	scale_button.text = "量程 ±%d cm" % SCALES[scale_index]
 	queue_redraw()
 
 func plot_position(point: Vector2) -> Vector2:
-	return PLOT.get_center() + Vector2(point.x, -point.y) * (PLOT.size.x * 50.0 / SCALES[scale_index])
+	return (PLOT.get_center() + Vector2(point.x, -point.y) * (PLOT.size.x * 50.0 / SCALES[scale_index])) * (size.x / 364.0)
 
 func ink(text: String, at: Vector2, font_size := 14, color := Color("a6b9ae")):
 	draw_string(ThemeDB.fallback_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
 
 func _draw():
 	draw_rect(Rect2(Vector2.ZERO, size), Color("182420"))
-	ink("正面弹着 / 连射观察", Vector2(16, 30), 22, Color("e0e2d2"))
+	draw_set_transform(Vector2.ZERO, 0, Vector2.ONE * size.x / 364.0)
+	ink("03  弹着与统计", Vector2(16, 30), 22, Color("e0e2d2"))
 	ink("横向：左右偏差　纵向：高度偏差", Vector2(16, 58))
 	var subtitle := "等待首发 · 固定本组瞄准点"
 	if effects and not effects.paper_plane.is_empty():
@@ -61,6 +72,7 @@ func _draw():
 	var failed := 0
 	var flying := 0
 	var outside := 0
+	var points: Array[Vector2] = []
 	if effects:
 		for shot in effects.paper_shots:
 			if shot.status == "flying":
@@ -70,7 +82,8 @@ func _draw():
 				failed += 1
 				continue
 			reached += 1
-			var point := plot_position(shot.point)
+			points.append(shot.point * 100.0)
+			var point := plot_position(shot.point) / (size.x / 364.0)
 			if not PLOT.grow(-5).has_point(point):
 				outside += 1
 				continue
@@ -94,4 +107,15 @@ func _draw():
 	ink("金色首发 · 蓝 → 橙表示射击顺序", Vector2(16, 572))
 	ink("靶心固定于本组首发瞄准点", Vector2(16, 598))
 	ink("命中靶体按同一正面平面投影", Vector2(16, 624))
-	ink("掩体截停不画弹孔 · K 切换技能", Vector2(16, 650))
+	ink("掩体截停不画弹孔", Vector2(16, 650))
+	var mean := Vector2.ZERO
+	for point in points: mean += point
+	if not points.is_empty(): mean /= points.size()
+	var variance := Vector2.ZERO
+	for point in points:
+		var delta := point - mean
+		variance += delta * delta
+	if not points.is_empty(): variance /= points.size()
+	ink("组中心：右 %+.1f / 上 %+.1f cm" % [mean.x, mean.y], Vector2(16, 756))
+	ink("离散 σ：横 %.1f / 纵 %.1f cm" % [sqrt(variance.x), sqrt(variance.y)], Vector2(16, 784))
+	ink("全部到靶面弹着参与统计（含量程外）", Vector2(16, 812), 13)

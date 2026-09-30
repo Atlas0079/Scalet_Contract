@@ -25,7 +25,8 @@
       "switch_retention": 0.35,
       "idle_decay_per_second": 0.5,
       "minimum_fire_progress": 0.55,
-      "drift_interval_seconds": 0.65
+      "drift_interval_seconds": 0.65,
+      "realignment_degrees_per_progress": 90.0
     },
     "state": {
       "fatigue_loss": 0.5,
@@ -44,12 +45,23 @@
       "per_level": 0.025
     },
     "recoil_control": {
-      "response_delay_seconds": 0.25,
+      "recognition_seconds": 0.12,
       "build_seconds": 0.35,
       "max_acceleration_degrees_per_second2": 180.0,
       "return_frequency": 8.0,
-      "memory_decay_seconds": 0.6,
-      "burst_gap_seconds": 0.35
+      "burst_gap_seconds": 0.35,
+      "reference_brace": 0.85,
+      "brace_efficiency": [0.7, 1.0],
+      "recognition_factor": [0.4, 1.6],
+      "establishment_factor": [0.7, 1.3],
+      "correction_factor": [0.75, 1.25],
+      "prediction_factor": [0.2, 1.0],
+      "settled_precision_factor": [0.6, 1.4],
+      "unsettled_precision_factor": [0.8, 1.2],
+      "overshoot_degrees_per_force_surplus": 4.0,
+      "overshoot_max_degrees": 6.0,
+      "overshoot_effort_per_degree": 0.5,
+      "overshoot_push_seconds": 0.65
     }
   },
   "profiles": {
