@@ -1,0 +1,83 @@
+{
+  "tracers": {
+    "warm_tracer": {
+      "length_m": 2.0,
+      "brightness": 0.9,
+      "fade_seconds": 0.045
+    }
+  },
+  "characters": {
+    "humanoid": {
+      "waist_limit_degrees": 35.0,
+      "aim_limit_degrees": 18.0,
+      "aim_pitch_limit_degrees": 35.0,
+      "style": {
+        "shade_bands": 3,
+        "shadow_floor": 0.62,
+        "outline_pixels": 1,
+        "outline_color": "#192a29",
+        "body_color": "#788c80",
+        "joint_color": "#314741",
+        "bone_colors": {
+          "Head": "#ded8ba",
+          "neck": "#344640",
+          "clavicle": "#a8b59a",
+          "upperarm": "#7d9280",
+          "lowerarm": "#b4b69b",
+          "hand": "#536a60",
+          "thigh": "#465e55",
+          "calf": "#60756a",
+          "foot": "#344b45",
+          "ball": "#344b45"
+        },
+        "shadow": {
+          "color": "#0e2018",
+          "opacity": 0.42,
+          "offset_pixels": [
+            3,
+            4
+          ]
+        }
+      }
+    }
+  },
+  "weapons": {
+    "rifle": {
+      "rig": "res://assets/characters/rifle_mannequin.glb",
+      "clips": {
+        "aim": "Rifle_Aim",
+        "reload": "Rifle_Reload"
+      },
+      "casing_socket_source_units": [
+        -3.8,
+        6,
+        -7
+      ],
+      "recoil": {
+        "frequency": 42.0,
+        "position_impulse_m": 0.009,
+        "velocity_impulse": 3.7,
+        "side_impulse": 0.38,
+        "max_displacement_m": 0.065,
+        "max_side_displacement_m": 0.009
+      },
+      "flash": {
+        "life_seconds": 0.075,
+        "length_m": 0.25,
+        "width_m": 0.073
+      },
+      "casings": {
+        "maximum": 96,
+        "gravity_mps2": 10.0,
+        "ejection_min_mps": 1.1,
+        "ejection_max_mps": 1.65,
+        "fade_start_seconds": 4.2,
+        "life_seconds": 5.5
+      },
+      "style": {
+        "color": "#b6b5a1",
+        "flash_strength": 0.55
+      }
+    }
+  }
+}

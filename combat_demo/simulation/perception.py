@@ -127,7 +127,7 @@ def update_enemy(world,actor):
                     if not any(grid.cell_feature_at((cell[0]+dx,cell[1]+dy)) for dx,dy in [(0,-1),(1,0),(0,1),(-1,0)]):continue
                     if grid.raycast(grid.cell_center(cell),target.position,1.65,1.25,"projectile")[1] is not None:continue
                     path=planner.path(actor,cell,zone=zone,known=False)
-                    if path:choices.append((len(path),grid.cell_center(cell).distance_to(target.position),cell[1],cell[0],cell,path))
+                    if path:choices.append((grid.path_cost(path),grid.cell_center(cell).distance_to(target.position),cell[1],cell[0],cell,path))
                 if choices:
                     choice=min(choices)
                     actor.ai_goal=choice[-2]

@@ -1,0 +1,21 @@
+{
+  "guard_reaction": {
+    "name": "警卫反应训练档案",
+    "origin_kind": "trait",
+    "scope": "controller",
+    "duration_seconds": null,
+    "contributions": [
+      {
+        "contribution_id": "effect",
+        "target_kind": "capability",
+        "target_id": "response_delay_seconds",
+        "role": "bonus",
+        "operation": "add",
+        "value": 0.4,
+        "stack_group": "reaction_profile",
+        "stack_policy": "stack",
+        "priority": 0
+      }
+    ]
+  }
+}

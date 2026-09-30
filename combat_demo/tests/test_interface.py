@@ -20,13 +20,13 @@ class InterfaceTests(unittest.TestCase):
     def click(self,pos,button=1):
         self.app.events([pg.event.Event(pg.MOUSEBUTTONDOWN,pos=pos,button=button),pg.event.Event(pg.MOUSEBUTTONUP,pos=pos,button=button)])
 
-    def test_T21_hover_branches_and_edge_avoidance(self):
-        a=self.app;a.door_menu(door='door_S_R',anchor=(1390,800));menu=a.menu
-        menu.update((menu.root.x+20,menu.root.y+56+2*32+10),1000)
-        menu.update((menu.root.x+20,menu.root.y+56+2*32+10),1181)
-        self.assertEqual(menu.branch,2);self.assertLess(menu.panels()[1][0].left,menu.root.left)
+    def test_T21_door_actions_stay_in_sidebar_without_issuing_orders(self):
+        a=self.app;a.door_menu(door='door_S_R',anchor=(1390,800))
+        self.assertIsNone(a.menu)
+        a.choose_action(a.action_focus['entries'][2]);a.choose_action(a.action_focus['entries'][0])
+        a.draw();self.assertIsNone(a.draft);self.assertFalse(a.world.planner.tasks)
+        a.new_draft(*a.action_focus['choice']);self.assertIsNotNone(a.draft)
         self.assertFalse(a.world.planner.tasks)
-        menu.activate((1,0));self.assertIsNotNone(a.draft);self.assertFalse(a.world.planner.tasks)
 
     def test_T22_personal_inventory_keeps_selection(self):
         a=self.app;a.world.actor(3).weapon.ammo=7
@@ -53,8 +53,8 @@ class InterfaceTests(unittest.TestCase):
         ITEMS[item.id]=item;a.world.actor(3).inventory.quantities[item.id]=1
         try:
             a.personal_menu(3,(600,400));self.assertTrue(any('测试闪光' in e.label for e in a.menu.entries))
-            a.door_menu(door='door_S_R',anchor=(600,400));entries=a.menu.entries[2].children
-            self.assertTrue(any('测试闪光' in e.label for e in entries));entries[-1].action()
+            a.door_menu(door='door_S_R',anchor=(600,400));entries=a.action_focus['entries'][2].children
+            self.assertTrue(any('测试闪光' in e.label for e in entries));entries[-1].action();a.new_draft(*a.action_focus['choice'])
             self.assertEqual(a.draft.item,item.id)
         finally:ITEMS.pop(item.id)
 

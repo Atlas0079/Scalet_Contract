@@ -1,0 +1,225 @@
+{
+  "unit": "test_operator",
+  "character_choices": [
+    "human",
+    "android",
+    "robot"
+  ],
+  "weapon_choices": [
+    "test_carbine",
+    "rifle"
+  ],
+  "target": {
+    "radius_m": 0.23,
+    "height_m": 1.8,
+    "aim_heights_m": [
+      1.25,
+      0.65,
+      1.65
+    ]
+  },
+  "range": {
+    "bounds_m": [
+      -2,
+      -5,
+      28.8,
+      10
+    ],
+    "lanes": [
+      {
+        "label": "3 米",
+        "spawn_m": [
+          0,
+          -3.6
+        ],
+        "target": "open_3"
+      },
+      {
+        "label": "6 米",
+        "spawn_m": [
+          0,
+          -1.2
+        ],
+        "target": "open_6"
+      },
+      {
+        "label": "10 米",
+        "spawn_m": [
+          0,
+          1.2
+        ],
+        "target": "open_10"
+      },
+      {
+        "label": "15 米",
+        "spawn_m": [
+          0,
+          3.6
+        ],
+        "target": "open_15"
+      },
+      {
+        "label": "矮掩体",
+        "spawn_m": [
+          18,
+          -3.6
+        ],
+        "target": "cover_0"
+      },
+      {
+        "label": "高掩体",
+        "spawn_m": [
+          18,
+          -1.2
+        ],
+        "target": "cover_1"
+      },
+      {
+        "label": "实体墙",
+        "spawn_m": [
+          18,
+          1.2
+        ],
+        "target": "cover_2"
+      },
+      {
+        "label": "墙体缺口",
+        "spawn_m": [
+          18,
+          3.6
+        ],
+        "target": "cover_3"
+      }
+    ],
+    "targets": [
+      {
+        "id": "open_3",
+        "label": "3m 靶",
+        "position_m": [
+          3,
+          -3.6
+        ]
+      },
+      {
+        "id": "open_6",
+        "label": "6m 靶",
+        "position_m": [
+          6,
+          -1.2
+        ]
+      },
+      {
+        "id": "open_10",
+        "label": "10m 靶",
+        "position_m": [
+          10,
+          1.2
+        ]
+      },
+      {
+        "id": "open_15",
+        "label": "15m 靶",
+        "position_m": [
+          15,
+          3.6
+        ]
+      },
+      {
+        "id": "cover_0",
+        "label": "矮掩体靶",
+        "position_m": [
+          24,
+          -3.6
+        ]
+      },
+      {
+        "id": "cover_1",
+        "label": "高掩体靶",
+        "position_m": [
+          24,
+          -1.2
+        ]
+      },
+      {
+        "id": "cover_2",
+        "label": "实体墙靶",
+        "position_m": [
+          24,
+          1.2
+        ]
+      },
+      {
+        "id": "cover_3",
+        "label": "墙体缺口靶",
+        "position_m": [
+          24,
+          3.6
+        ]
+      }
+    ],
+    "obstacles": [
+      {
+        "id": "barrier_0",
+        "label": "矮掩体",
+        "kind": "cover",
+        "rect_m": [
+          21,
+          -4.35,
+          0.3,
+          1.5
+        ],
+        "height_m": 0.8
+      },
+      {
+        "id": "barrier_1",
+        "label": "高掩体",
+        "kind": "cover",
+        "rect_m": [
+          21,
+          -1.95,
+          0.3,
+          1.5
+        ],
+        "height_m": 1.3
+      },
+      {
+        "id": "barrier_2",
+        "label": "实体墙",
+        "kind": "wall",
+        "rect_m": [
+          21,
+          0.44999999999999996,
+          0.3,
+          1.5
+        ],
+        "height_m": 2.6
+      },
+      {
+        "id": "gap_wall_0",
+        "label": "缺口墙",
+        "kind": "wall",
+        "rect_m": [
+          21,
+          2.6,
+          0.3,
+          0.6
+        ],
+        "height_m": 2.6
+      },
+      {
+        "id": "gap_wall_1",
+        "label": "缺口墙",
+        "kind": "wall",
+        "rect_m": [
+          21,
+          4.0,
+          0.3,
+          0.6
+        ],
+        "height_m": 2.6
+      }
+    ],
+    "impact_lifetime_seconds": 8.0,
+    "maximum_impacts": 160
+  }
+}

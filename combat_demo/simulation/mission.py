@@ -132,4 +132,12 @@ def create_mission(config: str = "A"):
     world=World(grid,actors,rng=Random(SEEDS[config]),scenario_name="greyport",mission=mission)
     world.paused=True
     world.perception.refresh(world,0.0,force=True)
+    # Containers reuse authored furniture; the briefing case is nonblocking.
+    loot=world.loot
+    loot.add('case:S','现场补给箱','case',(35,31),[loot.item('rifle',ammo=17),loot.item('bandage',2),loot.item('rifle_ammo',30)])
+    for room,cell in [('R',(33,27)),('O',(37,20)),('A',(35,11)),('M',(26,3)),('W',(12,19)),('L',(8,27)),('U',(3,15)),('N',(17,5))]:
+        loot.add('cache:'+room,LABELS[room]+'物资柜','container',cell,
+                 [loot.item('intel' if room=='A' else 'parts'),loot.item('bandage'),loot.item('rifle_ammo',20)])
+    loot.add('drop:S','地面物品','ground',(37,31),[loot.item('flashbang')])
+    loot.refresh()
     return world

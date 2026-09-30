@@ -1,0 +1,1001 @@
+{
+  "human": {
+    "id": "human",
+    "display_name": "人类身体",
+    "regions": [
+      {
+        "id": "head",
+        "parts": [
+          {
+            "id": "skull",
+            "region": "head",
+            "max_hp": 35.0,
+            "hit_weight": 55.0,
+            "tags": [
+              "head",
+              "bone"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "brain",
+            "region": "head",
+            "max_hp": 20.0,
+            "hit_weight": 20.0,
+            "tags": [
+              "brain",
+              "vital",
+              "head"
+            ],
+            "damage_multiplier": 2.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "eyes",
+            "region": "head",
+            "max_hp": 12.0,
+            "hit_weight": 15.0,
+            "tags": [
+              "vision",
+              "head"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "jaw",
+            "region": "head",
+            "max_hp": 18.0,
+            "hit_weight": 10.0,
+            "tags": [
+              "head"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          }
+        ],
+        "name": "头部"
+      },
+      {
+        "id": "torso",
+        "parts": [
+          {
+            "id": "thorax",
+            "region": "torso",
+            "max_hp": 85.0,
+            "hit_weight": 35.0,
+            "tags": [
+              "torso",
+              "bleeds"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "heart",
+            "region": "torso",
+            "max_hp": 25.0,
+            "hit_weight": 10.0,
+            "tags": [
+              "torso",
+              "vital",
+              "bleeds",
+              "heart"
+            ],
+            "damage_multiplier": 1.5,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "lungs",
+            "region": "torso",
+            "max_hp": 45.0,
+            "hit_weight": 20.0,
+            "tags": [
+              "torso",
+              "lung",
+              "bleeds"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "stomach",
+            "region": "torso",
+            "max_hp": 70.0,
+            "hit_weight": 25.0,
+            "tags": [
+              "torso",
+              "bleeds"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "spine",
+            "region": "torso",
+            "max_hp": 35.0,
+            "hit_weight": 10.0,
+            "tags": [
+              "torso",
+              "spine"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          }
+        ],
+        "name": "躯干"
+      },
+      {
+        "id": "left_arm",
+        "parts": [
+          {
+            "id": "left_upper_arm",
+            "region": "left_arm",
+            "max_hp": 35.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "arm",
+              "manipulation",
+              "bleeds",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "left_forearm",
+            "region": "left_arm",
+            "max_hp": 32.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "arm",
+              "manipulation",
+              "bleeds",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "left_hand",
+            "region": "left_arm",
+            "max_hp": 22.0,
+            "hit_weight": 10.0,
+            "tags": [
+              "hand",
+              "manipulation",
+              "bleeds",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          }
+        ],
+        "name": "左臂"
+      },
+      {
+        "id": "right_arm",
+        "parts": [
+          {
+            "id": "right_upper_arm",
+            "region": "right_arm",
+            "max_hp": 35.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "arm",
+              "manipulation",
+              "bleeds",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "right_forearm",
+            "region": "right_arm",
+            "max_hp": 32.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "arm",
+              "manipulation",
+              "bleeds",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "right_hand",
+            "region": "right_arm",
+            "max_hp": 22.0,
+            "hit_weight": 10.0,
+            "tags": [
+              "hand",
+              "manipulation",
+              "bleeds",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          }
+        ],
+        "name": "右臂"
+      },
+      {
+        "id": "left_leg",
+        "parts": [
+          {
+            "id": "left_thigh",
+            "region": "left_leg",
+            "max_hp": 45.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "locomotion",
+              "leg",
+              "bleeds",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "left_calf",
+            "region": "left_leg",
+            "max_hp": 38.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "locomotion",
+              "leg",
+              "bleeds",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "left_foot",
+            "region": "left_leg",
+            "max_hp": 24.0,
+            "hit_weight": 10.0,
+            "tags": [
+              "foot",
+              "locomotion",
+              "bleeds",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          }
+        ],
+        "name": "左腿"
+      },
+      {
+        "id": "right_leg",
+        "parts": [
+          {
+            "id": "right_thigh",
+            "region": "right_leg",
+            "max_hp": 45.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "locomotion",
+              "leg",
+              "bleeds",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "right_calf",
+            "region": "right_leg",
+            "max_hp": 38.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "locomotion",
+              "leg",
+              "bleeds",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "right_foot",
+            "region": "right_leg",
+            "max_hp": 24.0,
+            "hit_weight": 10.0,
+            "tags": [
+              "foot",
+              "locomotion",
+              "bleeds",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          }
+        ],
+        "name": "右腿"
+      }
+    ],
+    "fatal_parts": [
+      "brain",
+      "heart"
+    ],
+    "fatal_regions": [
+      "head",
+      "torso"
+    ],
+    "capabilities": {
+      "movement": {
+        "regions": {
+          "left_leg": 1,
+          "right_leg": 1
+        }
+      },
+      "manipulation": {
+        "regions": {
+          "left_arm": 1,
+          "right_arm": 1
+        }
+      },
+      "vision": {
+        "regions": {
+          "head": 1
+        }
+      }
+    },
+    "hit_bands": [
+      {
+        "min_height_fraction": 0.8333333333333333,
+        "regions": {
+          "head": 1
+        }
+      },
+      {
+        "min_height_fraction": 0.5833333333333334,
+        "regions": {
+          "torso": 0.9,
+          "left_arm": 0.1
+        }
+      },
+      {
+        "min_height_fraction": 0.41666666666666663,
+        "regions": {
+          "torso": 0.8,
+          "right_arm": 0.2
+        }
+      },
+      {
+        "min_height_fraction": 0,
+        "regions": {
+          "left_leg": 0.5,
+          "right_leg": 0.5
+        }
+      }
+    ]
+  },
+  "android": {
+    "id": "android",
+    "display_name": "仿生人身体",
+    "regions": [
+      {
+        "id": "head",
+        "parts": [
+          {
+            "id": "skull",
+            "region": "head",
+            "max_hp": 35.0,
+            "hit_weight": 55.0,
+            "tags": [
+              "head",
+              "bone"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "processor",
+            "region": "head",
+            "max_hp": 20.0,
+            "hit_weight": 20.0,
+            "tags": [
+              "brain",
+              "vital",
+              "head"
+            ],
+            "damage_multiplier": 2.0,
+            "attributes": {
+              "neural_speed": 150
+            },
+            "bonus_sources": []
+          },
+          {
+            "id": "eyes",
+            "region": "head",
+            "max_hp": 12.0,
+            "hit_weight": 15.0,
+            "tags": [
+              "vision",
+              "head"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {
+              "senses": 120
+            },
+            "bonus_sources": []
+          },
+          {
+            "id": "jaw",
+            "region": "head",
+            "max_hp": 18.0,
+            "hit_weight": 10.0,
+            "tags": [
+              "head"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          }
+        ],
+        "name": "头部"
+      },
+      {
+        "id": "torso",
+        "parts": [
+          {
+            "id": "thorax",
+            "region": "torso",
+            "max_hp": 85.0,
+            "hit_weight": 35.0,
+            "tags": [
+              "torso"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {
+              "tissue_stability": 120
+            },
+            "bonus_sources": []
+          },
+          {
+            "id": "power_core",
+            "region": "torso",
+            "max_hp": 25.0,
+            "hit_weight": 10.0,
+            "tags": [
+              "torso",
+              "vital",
+              "heart"
+            ],
+            "damage_multiplier": 1.5,
+            "attributes": {
+              "circulation_efficiency": 120
+            },
+            "bonus_sources": []
+          },
+          {
+            "id": "lungs",
+            "region": "torso",
+            "max_hp": 45.0,
+            "hit_weight": 20.0,
+            "tags": [
+              "torso",
+              "lung"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "stomach",
+            "region": "torso",
+            "max_hp": 70.0,
+            "hit_weight": 25.0,
+            "tags": [
+              "torso"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "spine",
+            "region": "torso",
+            "max_hp": 35.0,
+            "hit_weight": 10.0,
+            "tags": [
+              "torso",
+              "spine"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          }
+        ],
+        "name": "躯干"
+      },
+      {
+        "id": "left_arm",
+        "parts": [
+          {
+            "id": "left_upper_arm",
+            "region": "left_arm",
+            "max_hp": 35.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "arm",
+              "manipulation",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {
+              "muscle_fiber_output": 220
+            },
+            "bonus_sources": []
+          },
+          {
+            "id": "left_forearm",
+            "region": "left_arm",
+            "max_hp": 32.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "arm",
+              "manipulation",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "left_hand",
+            "region": "left_arm",
+            "max_hp": 22.0,
+            "hit_weight": 10.0,
+            "tags": [
+              "hand",
+              "manipulation",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {
+              "fine_control": 140
+            },
+            "bonus_sources": []
+          }
+        ],
+        "name": "左臂"
+      },
+      {
+        "id": "right_arm",
+        "parts": [
+          {
+            "id": "right_upper_arm",
+            "region": "right_arm",
+            "max_hp": 35.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "arm",
+              "manipulation",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {
+              "muscle_fiber_output": 220
+            },
+            "bonus_sources": []
+          },
+          {
+            "id": "right_forearm",
+            "region": "right_arm",
+            "max_hp": 32.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "arm",
+              "manipulation",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "right_hand",
+            "region": "right_arm",
+            "max_hp": 22.0,
+            "hit_weight": 10.0,
+            "tags": [
+              "hand",
+              "manipulation",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {
+              "fine_control": 140
+            },
+            "bonus_sources": []
+          }
+        ],
+        "name": "右臂"
+      },
+      {
+        "id": "left_leg",
+        "parts": [
+          {
+            "id": "left_thigh",
+            "region": "left_leg",
+            "max_hp": 45.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "locomotion",
+              "leg",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "left_calf",
+            "region": "left_leg",
+            "max_hp": 38.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "locomotion",
+              "leg",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "left_foot",
+            "region": "left_leg",
+            "max_hp": 24.0,
+            "hit_weight": 10.0,
+            "tags": [
+              "foot",
+              "locomotion",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          }
+        ],
+        "name": "左腿"
+      },
+      {
+        "id": "right_leg",
+        "parts": [
+          {
+            "id": "right_thigh",
+            "region": "right_leg",
+            "max_hp": 45.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "locomotion",
+              "leg",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "right_calf",
+            "region": "right_leg",
+            "max_hp": 38.0,
+            "hit_weight": 45.0,
+            "tags": [
+              "locomotion",
+              "leg",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "right_foot",
+            "region": "right_leg",
+            "max_hp": 24.0,
+            "hit_weight": 10.0,
+            "tags": [
+              "foot",
+              "locomotion",
+              "limb"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          }
+        ],
+        "name": "右腿"
+      }
+    ],
+    "fatal_parts": [
+      "processor",
+      "power_core"
+    ],
+    "fatal_regions": [
+      "head",
+      "torso"
+    ],
+    "capabilities": {
+      "movement": {
+        "regions": {
+          "left_leg": 1,
+          "right_leg": 1
+        }
+      },
+      "manipulation": {
+        "regions": {
+          "left_arm": 1,
+          "right_arm": 1
+        }
+      },
+      "vision": {
+        "regions": {
+          "head": 1
+        }
+      }
+    },
+    "hit_bands": [
+      {
+        "min_height_fraction": 0.8333333333333333,
+        "regions": {
+          "head": 1
+        }
+      },
+      {
+        "min_height_fraction": 0.5833333333333334,
+        "regions": {
+          "torso": 0.9,
+          "left_arm": 0.1
+        }
+      },
+      {
+        "min_height_fraction": 0.41666666666666663,
+        "regions": {
+          "torso": 0.8,
+          "right_arm": 0.2
+        }
+      },
+      {
+        "min_height_fraction": 0,
+        "regions": {
+          "left_leg": 0.5,
+          "right_leg": 0.5
+        }
+      }
+    ]
+  },
+  "robot": {
+    "id": "robot",
+    "display_name": "机器人机体",
+    "fatal_parts": [
+      "controller",
+      "power_core"
+    ],
+    "fatal_regions": [
+      "chassis"
+    ],
+    "regions": [
+      {
+        "id": "sensor",
+        "name": "传感器",
+        "parts": [
+          {
+            "id": "optic",
+            "region": "sensor",
+            "max_hp": 35,
+            "hit_weight": 1,
+            "tags": [
+              "mechanical"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {
+              "sensor_quality": 100
+            },
+            "bonus_sources": []
+          }
+        ]
+      },
+      {
+        "id": "chassis",
+        "name": "机体",
+        "parts": [
+          {
+            "id": "controller",
+            "region": "chassis",
+            "max_hp": 40,
+            "hit_weight": 1,
+            "tags": [
+              "mechanical"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {
+              "servo_precision": 100,
+              "control_security": 100
+            },
+            "bonus_sources": []
+          },
+          {
+            "id": "power_core",
+            "region": "chassis",
+            "max_hp": 50,
+            "hit_weight": 1,
+            "tags": [
+              "mechanical"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {},
+            "bonus_sources": []
+          },
+          {
+            "id": "frame",
+            "region": "chassis",
+            "max_hp": 85,
+            "hit_weight": 1,
+            "tags": [
+              "mechanical"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {
+              "cooling": 100,
+              "em_shielding": 100
+            },
+            "bonus_sources": []
+          }
+        ]
+      },
+      {
+        "id": "tool_left",
+        "name": "左操作器",
+        "parts": [
+          {
+            "id": "gripper_left",
+            "region": "tool_left",
+            "max_hp": 60,
+            "hit_weight": 1,
+            "tags": [
+              "mechanical"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {
+              "actuator_output": 180
+            },
+            "bonus_sources": []
+          }
+        ]
+      },
+      {
+        "id": "tool_right",
+        "name": "右操作器",
+        "parts": [
+          {
+            "id": "gripper_right",
+            "region": "tool_right",
+            "max_hp": 60,
+            "hit_weight": 1,
+            "tags": [
+              "mechanical"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {
+              "actuator_output": 180
+            },
+            "bonus_sources": []
+          }
+        ]
+      },
+      {
+        "id": "drive_left",
+        "name": "左驱动器",
+        "parts": [
+          {
+            "id": "motor_left",
+            "region": "drive_left",
+            "max_hp": 70,
+            "hit_weight": 1,
+            "tags": [
+              "mechanical"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {
+              "drive_efficiency": 100
+            },
+            "bonus_sources": []
+          }
+        ]
+      },
+      {
+        "id": "drive_right",
+        "name": "右驱动器",
+        "parts": [
+          {
+            "id": "motor_right",
+            "region": "drive_right",
+            "max_hp": 70,
+            "hit_weight": 1,
+            "tags": [
+              "mechanical"
+            ],
+            "damage_multiplier": 1.0,
+            "attributes": {
+              "drive_efficiency": 100
+            },
+            "bonus_sources": []
+          }
+        ]
+      }
+    ],
+    "capabilities": {
+      "movement": {
+        "regions": {
+          "drive_left": 1,
+          "drive_right": 1
+        }
+      },
+      "manipulation": {
+        "regions": {
+          "tool_left": 1,
+          "tool_right": 1
+        }
+      },
+      "vision": {
+        "regions": {
+          "sensor": 1
+        }
+      }
+    },
+    "hit_bands": [
+      {
+        "min_height_fraction": 0.83,
+        "regions": {
+          "sensor": 1
+        }
+      },
+      {
+        "min_height_fraction": 0.42,
+        "regions": {
+          "chassis": 0.8,
+          "tool_left": 0.1,
+          "tool_right": 0.1
+        }
+      },
+      {
+        "min_height_fraction": 0,
+        "regions": {
+          "drive_left": 0.5,
+          "drive_right": 0.5
+        }
+      }
+    ]
+  }
+}

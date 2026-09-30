@@ -6,10 +6,112 @@ direction.
 
 ## Project State
 
+V1.7.4 adds the user's requested 0.5-second delay after overlap ends. Actor's
+crowd_slow_remaining refreshes on crowd contact, expires in simulation time even
+when standing, and freezes while World is paused. It survives clear_movement so
+cell arrivals and command changes do not erase the remaining slowdown. The final
+timer step prorates movement if expiry occurs inside dt. Launcher: v1.7.4.
+
+V1.7.3 (2026-09-08) supersedes the yielding behavior below at the user's request.
+Crowding now only applies a 0.45 multiplier to one mover in each overlapping pair:
+the slower effective speed (injury/terrain included), then higher ID for equal
+speeds. The other mover keeps full speed, both keep moving, and separation clears
+the multiplier immediately. Multipliers do not stack. Snapshot calculation and
+existing occupied-final-cell rules remain. Removed movement_yield_* Actor fields,
+task priority arbitration, following constraints/cycle resolution, temporary-yield
+UI text, and Planner stall exemption. Movement no longer chooses by task order;
+the existing doorway release sequence is unchanged. Launcher: v1.7.3.
+
+V1.7.2 (2026-09-08) replaces symmetric moving-body slowdown with snapshot-based
+local following and yielding in movement_allowances. World supplies current task
+member order for ties and passes distance budgets to the existing actor updater.
+The leading actor keeps its effective speed; overlapping followers separate before
+following. Crossings yield deterministically; cycles release one mover. Transit
+through stationary bodies remains possible at 0.45 speed, walls do not cause
+crowding, and requested routes/slots/facing are unchanged. Actor yield state records
+the moving queue leader and its prior position; Planner only resets stall timers
+when that leader actually moved. UI reports temporary yielding. Launcher: v1.7.2.
+See the movement section in command_and_ai.md and validation.md.
+
+V1.7.1 (2026-09-08) applies the user's UI principle: reserve the right-hand
+button panel for low-frequency settings and important actions; frequent spatial
+interactions belong on the map. Staged station placement now shares ordinary
+move_drag press/release handling: left-select, right-click destination, right-drag
+from that destination to set facing (0.5-cell threshold). A plain click restores
+the planner's default facing. In-place facing uses a right-drag at the existing
+station. Position and facing validate/undo atomically. Dedicated position/facing
+buttons, tools and the separate plan_drag path were removed. Launcher: v1.7.1.
+See the UI principle in demo_design.md and the 1.7.1 interaction revision.
+
+V1.7 (2026-09-08) replaces the global quick/staged toggle with explicit sidebar
+choices. Door and room trees use action_focus, including keyboard navigation and
+an explicit command/arrangement decision. Staged editing pauses time and focuses
+the entrance; stage tabs filter markers. Actor/card/number input chooses the edited
+member without changing participants. Dedicated arrows reorder. Draft undo and one
+recoverable in-mission draft live in PlanningViewMixin, using the existing planner
+for validation. Invalid edits keep valid state with explicit feedback. Editing locks
+live command hotkeys and resume controls. Commit remains paused; Space executes.
+Events/settings preserve draft context; loot notifications wait until editing ends.
+The launcher uses release/v1.7. See the 1.7 section in interaction_and_loot.md and
+validation.md. These rules supersede the historical 1.6 UI behavior below.
+
+V1.6 (2026-09-08) adds quick commands and staged plans. UI defaults to quick + hold
+after entry; explicit threat-search remains available. `TaskDraft` carries after_entry,
+stack/entry overrides and angles; preview and submit validate and preserve these.
+Pinned slots never silently relocate; normal auto slots retain existing resolution.
+`planning_view.py` contains map-space edit helpers and plan controls. Left-drag markers
+to move, right-drag to face; actual actor clicks leave unsubmitted drafts. Entrance
+changes reset edits; method/order changes preserve them or reject atomically. Room
+guard asks for a legal point rather than using the room center. Map glyph geometry
+uses world sizes, fixed readable text/strokes remain screen-space, movement direction
+drag threshold is 0.5 world cells. Extraction remains out of scope.
+
+V1.5.4: room labels are display-only, hide near the pointer and highlight with Ctrl.
+Ctrl-right-click any zoned map cell opens room actions in the sidebar, preserving
+selected participants. Sidebar focus derives from room_inspect, actor-scoped menus,
+object menus, selection, loot and draft state; hover does not switch primary focus.
+No selected actor means no actor command buttons. Events and pending loot remain
+fixed footer entries even in drafts and allocation; events restore previous context.
+
+V1.5.3 implements the first UI clarity pass: task-first sidebar, conditional sync rows,
+fixed read-only actor detail entry, contextual loot candidate inspection, explicit
+finish-current versus browse-next controls, and single-item reservation cancellation
+through the existing `cancel_pickup` used by reassignment. Details preserve selection,
+loot context, reservations and pause state. Incremental allocation preserves its source
+decision even when replacing the searcher's micro queue. See interaction_and_loot.md
+for current UI rules; extraction remains outside this release.
+
 `combat_demo` now implements the Greyport tactical command demo. The authoritative
-gameplay specification is `demo_design.md`; v1.4.1 command ownership and AI response rules are centralized in `command_and_ai.md`; measured results and remaining manual
+gameplay specification is `demo_design.md`; v1.5 command ownership and AI response rules are centralized in `command_and_ai.md`; measured results and remaining manual
 acceptance work are recorded in `validation.md`. The sections below about future
 body species and ECS are historical architecture notes, not extra demo requirements.
+
+Design direction (2026-09-07): Pygame is a functional
+prototype; the user intends a later Godot implementation. Preserve the multi-actor
+command model and develop a loot/risk/extraction/preparation loop, permanent actor
+death, equipment loss and partial extraction while remaining actors stay playable.
+`player_experience_review.md` records the accepted direction and existing UI issues.
+`interaction_and_loot.md` specifies the latest macro/micro loot search, yellow object
+states, automatic pause on search completion, allocation plans and physical pickup.
+Container UI now uses a map-anchored window with a tether: double-left-click an item for the named interacting actor, or right-click to choose another carrier. Each click submits a reservation immediately; closing finishes that source decision and keeps time paused. V1.5.2 allows reassignment of reserved items through the same double-click/right-click controls: validate first, remove only the old pickup, preserve other reservations and macro ownership even after reopening. Selecting the same carrier is a no-op preserving action progress. Completed transfers cannot be reassigned from container records. Repeated same-source pickups append; no per-row actor buttons or confirmation draft remain. The current level validates functional correctness, not entertainment or balance.
+Search reveals information, allocation reserves work, and completed on-site transfer
+changes ownership. If A searches and B is assigned a gun, B must reach the container
+and complete pickup. Same-task allocation edits that task; outside-task micro orders
+still apply the existing whole-macro takeover rule. Do not implement teleporting loot
+or a separate inventory path for each object kind. Corpses occupy a chosen nearby
+legal placement cell and slow traversal; loose drops do not block or slow movement.
+
+V1.5 implements that in-raid loot slice in `simulation/loot.py` and
+`rendering/loot_view.py`, reusing Planner nodes and World timed actions. Search:
+3 seconds for containers, 2 for corpses. Transfer/drop/equip: 0.6 seconds divided
+by manipulation efficiency. Capacity: 18 kg. Corpse speed: 0.6; placement radius:
+2 geometric path units, y/x tie break, same-cell fallback. Known object contents
+are snapshots, equipment instances retain identity and magazine state. Macro
+search requires participants already in the zone; guards are excluded from
+observation assignment. Results remain accessible with L; inventory with I.
+Victory allows returning to the field for looting. Extraction, persistent stash,
+recruitment, stack splitting, direct handover and storing back are not implemented.
+Do not mistake the future extraction specification for existing code.
 
 Current working systems:
 
@@ -34,7 +136,7 @@ Current command ownership:
 
 The old autonomous AI modules remain removed. Enemy AI is now implemented by the
 explicit state machine in `perception.py`; allies act through player plans and
-local firing rules, sound observation and incoming-fire bearings. Do not restore the old member-only takeover behavior: a micro command cancels the whole associated macro task, including when Shift is held. Shift appends only within micro plans. Unknown incoming fire suspends a macro or non-motion personal plan until explicit resume; active micro movement/turning continues with a warning. Active micro movement/turning outranks automatic aim, fire, reload and investigation. Guard setup has priority until first arrival/alignment, then normal defensive fire is allowed. The launcher targets release/v1.4.1/ScarletContract because an old running executable must not be overwritten. Ground right-drag commits a segment angle on release at a 16 screen-pixel threshold. Do not reintroduce legacy grenade/bandage counters or old AI
+local firing rules, sound observation and incoming-fire bearings. Do not restore the old member-only takeover behavior: a micro command cancels the whole associated macro task, including when Shift is held. Shift appends only within micro plans. Unknown incoming fire suspends a macro or non-motion personal plan until explicit resume; active micro movement/turning continues with a warning. Active micro movement/turning outranks automatic aim, fire, reload and investigation. Guard setup has priority until first arrival/alignment, then normal defensive fire is allowed. The launcher targets release/v1.6/ScarletContract; older release directories and running sessions are preserved. Ground right-drag commits a segment angle on release at a 0.5 world-cell threshold. Do not reintroduce legacy grenade/bandage counters or old AI
 compatibility paths. Start the released app with the root `Start Demo.cmd`, or run
 `combat_demo/main.py` from Python. No legacy scenario selector remains in the UI.
 

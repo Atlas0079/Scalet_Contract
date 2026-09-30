@@ -16,10 +16,11 @@ if TYPE_CHECKING:
     from .world import World
 
 LABELS = {"move":"移动", "guard":"定点警戒", "face":"调整朝向", "attack":"指定攻击",
-          "reload":"换弹", "bandage":"自行包扎", "throw":"投掷", "wait":"等待信号", "task":"房间行动", "move_face":"定向移动"}
+          "reload":"换弹", "bandage":"自行包扎", "throw":"投掷", "wait":"等待信号", "task":"房间行动", "move_face":"定向移动",
+          "loot_search":"搜索物品", "loot_take":"到场拿取", "loot_drop":"放下物品", "loot_equip":"装备武器"}
 STAGES = {"queued":"排队", "stack":"门外集结", "wait":"等待信号", "door":"操作门",
-          "throw":"使用物品", "blast":"等待起爆", "enter":"依次进入", "search":"分区搜索",
-          "blocked":"已挂起", "done":"完成", "cancelled":"已取消"}
+          "throw":"使用物品", "blast":"等待起爆", "enter":"依次进入", "search":"检查威胁",
+          "blocked":"已挂起", "done":"完成", "cancelled":"已取消", "loot":"搜索物资", "allocation":"等待物资分配"}
 
 
 @dataclass
@@ -36,12 +37,14 @@ class Node:
     reason: str = ""
     elapsed: float = 0.0
     started: bool = False
+    object_id: str | None = None
+    cargo_id: str | None = None
 
 
 @dataclass
 class TaskDraft:
     actors: list[int]
-    door: str
+    door: str | None
     room: str
     method: str
     outside: tuple[int,int]
@@ -54,6 +57,11 @@ class TaskDraft:
     landing: tuple[int,int] | None = None
     sync: str | None = None
     opening: str = "open"
+    after_entry: str = "search"
+    stack_overrides: dict[int,tuple[int,int]] = field(default_factory=dict)
+    entry_overrides: dict[int,tuple[int,int]] = field(default_factory=dict)
+    stack_angles: dict[int,float] = field(default_factory=dict)
+    entry_angles: dict[int,float] = field(default_factory=dict)
 
 
 @dataclass
@@ -74,6 +82,11 @@ class SquadTask:
     action_started: bool = False
     flash_released: bool = False
     blast_at: float = 0.0
+    jobs: dict[int, Node] = field(default_factory=dict)
+    pickups: dict[int, list[Node]] = field(default_factory=dict)
+    guards: set[int] = field(default_factory=set)
+    seen_loot: set[str] = field(default_factory=set)
+    loot_idle: float = 0.0
 
     @property
     def token(self):
@@ -163,33 +176,30 @@ class Planner:
                 return "被墙阻挡"
         return None
 
-    def submit(self, ids, kind, *, cell=None, angle=None, target_id=None, item=None, sync=None, append=False):
+    def submit(self, ids, kind, *, cell=None, angle=None, target_id=None, item=None, sync=None, append=False, object_id=None, cargo_id=None):
         actors=[self.actor(i) for i in dict.fromkeys(ids)]
         if not actors or any(a is None or not a.alive for a in actors):
             return "先选择存活队员"
         appends={a.id:self.micro_append(a,append) for a in actors}
+        if kind in {'loot_search','loot_drop','loot_equip'}:
+            if len(actors)!=1:return '请选择一名执行者'
+            a=actors[0]
+            if kind=='loot_search':
+                error=self.world.loot.search_error(a,object_id,start=self.origin(a,appends[a.id]))
+            else:
+                from .actor import ActionType
+                error=self.world.loot.action_error(a,ActionType.DROP_ITEM if kind=='loot_drop' else ActionType.EQUIP_ITEM,'',cargo_id=cargo_id)
+            if error:return error
         if any(appends[a.id] and len(a.queue)>=8 for a in actors):
             return "队列已满（最多 8 项）"
         if kind == "wait" and sync not in {"A","B"}:
             return "请选择同步 A 或 B"
         if sync and any(self.has_sync(a, appends[a.id]) for a in actors):
             return "该队员已有同步等待"
-        grid=self.world.grid
         assigned={}
         if kind in {"move","guard","move_face"}:
-            if cell is None or not grid.walkable(cell):
-                return "目标不可通行"
-            occupied={a.occupied_cell for a in self.world.actors if a.alive and a.id not in ids}
-            for actor in sorted(actors,key=lambda a:a.id):
-                candidates=[cell] if len(actors)==1 else [c for c in grid.zone_cells
-                    if grid.zone_id(c)==grid.zone_id(cell) and hypot(c[0]-cell[0],c[1]-cell[1])<=2 and grid.walkable(c)]
-                paths=[(c,self.path(actor,c,start=self.origin(actor,appends[actor.id]))) for c in candidates if c not in occupied]
-                paths=[(c,p) for c,p in paths if p]
-                paths.sort(key=lambda cp: ((cp[0][0]-cell[0])**2+(cp[0][1]-cell[1])**2,len(cp[1]),cp[0][1],cp[0][0]))
-                if not paths:
-                    return "路径被占位或关闭的门阻断"
-                assigned[actor.id]=paths[0][0]
-                occupied.add(paths[0][0])
+            assigned,error=self.movement_targets(ids,cell,append)
+            if error:return error
         for actor in actors:
             if kind in {"reload","bandage","throw"}:
                 error=self.item_error(actor,item or {"reload":"rifle","bandage":"bandage","throw":"flashbang"}[kind],kind,appends[actor.id],cell)
@@ -203,12 +213,31 @@ class Planner:
             token=f"node:{self.next_id}"
             self.next_id+=1
             chosen_item=item or {"reload":"rifle","bandage":"bandage","throw":"flashbang"}.get(kind)
-            node=Node(token,kind,assigned.get(actor.id,cell),angle,target_id,chosen_item,sync)
+            node=Node(token,kind,assigned.get(actor.id,cell),angle,target_id,chosen_item,sync,object_id=object_id,cargo_id=cargo_id)
             if chosen_item and kind!="reload":actor.inventory.reserve(token,chosen_item)
             actor.queue.append(node)
             actor.blocked_reason=""
         self.world.message(f"{' '.join(str(a.id) for a in actors)}：{LABELS.get(kind,kind)}"+(f" · {sync}" if sync else ""))
         return None
+
+    def movement_targets(self,ids,cell,append=False):
+        """One allocation rule for both the cursor preview and the submitted plan."""
+        grid=self.world.grid
+        actors=[self.actor(i) for i in dict.fromkeys(ids)]
+        if not actors or any(a is None or not a.alive for a in actors):return {},'先选择存活队员'
+        if cell is None or not grid.walkable(cell):return {},'目标不可通行'
+        occupied={a.occupied_cell for a in self.world.actors if a.alive and a.id not in ids}
+        assigned={}
+        for actor in sorted(actors,key=lambda a:a.id):
+            candidates=[cell] if len(actors)==1 else [c for c in grid.zone_cells
+                if grid.zone_id(c)==grid.zone_id(cell) and hypot(c[0]-cell[0],c[1]-cell[1])<=2 and grid.walkable(c)]
+            origin=self.origin(actor,self.micro_append(actor,append))
+            paths=[(c,self.path(actor,c,start=origin)) for c in candidates if c not in occupied]
+            paths=[(c,p) for c,p in paths if p]
+            paths.sort(key=lambda cp: ((cp[0][0]-cell[0])**2+(cp[0][1]-cell[1])**2,grid.path_cost(cp[1]),cp[0][1],cp[0][0]))
+            if not paths:return {},'路径被占位或关闭的门阻断'
+            assigned[actor.id]=paths[0][0];occupied.add(paths[0][0])
+        return assigned,None
 
     def has_sync(self,actor,append):
         return append and any(n.sync or n.task_id in self.tasks and self.tasks[n.task_id].draft.sync for n in actor.queue)
@@ -237,7 +266,8 @@ class Planner:
         entries=fill([offset(inside,n,t) for n,t in [(1,1),(1,-1),(2,1),(2,-1)]],inside,room,2,4)
         return stacks,entries,atan2(ny,nx)
 
-    def preview_task(self,ids,door,room,method,*,item=None,thrower=None,landing=None,sync=None,opening=None,append=False):
+    def preview_task(self,ids,door,room,method,*,item=None,thrower=None,landing=None,sync=None,opening=None,append=False,
+                     after_entry='search',stack_overrides=None,entry_overrides=None,stack_angles=None,entry_angles=None):
         world=self.world
         actors=[self.actor(i) for i in dict.fromkeys(ids)]
         if not actors or any(a is None or not a.alive for a in actors):return None,"先选择存活队员"
@@ -249,7 +279,7 @@ class Planner:
         stacks,entries,angle=self.slots(outside,inside,room)
         if len(stacks)<len(actors) or len(entries)<len(actors):return None,"入口没有足够槽位"
         if method in {"open","kick"}:
-            reachable=[(len(p),a.id,a) for a in actors if (p:=self.path(a,outside,start=self.origin(a,append)))]
+            reachable=[(world.grid.path_cost(p),a.id,a) for a in actors if (p:=self.path(a,outside,start=self.origin(a,append)))]
             if not reachable:return None,"无可达交互格"
             actors=[min(reachable,key=lambda value:value[:2])[2]]
             stacks=[outside]
@@ -271,26 +301,48 @@ class Planner:
         draft=TaskDraft([a.id for a in actors],door,room,method,outside,inside,
                         dict(zip([a.id for a in actors],stacks)),dict(zip([a.id for a in actors],entries)),
                         angle,item,thrower,landing,sync,opening)
+        if after_entry not in {'hold','search'}:return None,'无效的突入后行动'
+        draft.after_entry=after_entry
+        draft.stack_overrides=dict(stack_overrides or {});draft.entry_overrides=dict(entry_overrides or {})
+        draft.stack_angles=dict(stack_angles or {});draft.entry_angles=dict(entry_angles or {})
+        for mapping in (draft.stack_overrides,draft.entry_overrides,draft.stack_angles,draft.entry_angles):
+            if any(i not in draft.actors for i in mapping):return None,'站位或朝向包含未参与的队员'
+        for overrides,slots,zone,is_entry in ((draft.stack_overrides,draft.stacks,world.grid.zone_id(outside),False),
+                                               (draft.entry_overrides,draft.entries,room,True)):
+            slots.update(overrides)
+            if len(set(slots.values()))!=len(slots):return None,'同一阶段的队员站位不能重叠'
+            for i,cell in overrides.items():
+                if not world.grid.walkable(cell) or world.grid.zone_id(cell)!=zone:return None,'站位必须在对应房间的可行走格'
+                if is_entry:
+                    if cell==inside:return None,'进门后站位不能占住入口通道'
+                    if not self.path(self.actor(i),cell,start=inside,zone=room):return None,'入口无法到达指定就位点'
+                elif not self.path(self.actor(i),cell,start=self.origin(self.actor(i),append),exclude=room):return None,'无法到达指定集结点'
+        from math import isfinite
+        if any(not isfinite(a) for mapping in (draft.stack_angles,draft.entry_angles) for a in mapping.values()):return None,'无效朝向'
         if item and landing is not None:
             error=self.throw_error(self.actor(thrower),item,landing,draft.stacks[thrower],room,door)
             if error:return draft,error
         return draft,None
 
     def choose_entrance(self,ids,door=None,room=None,method="direct",append=False,item=None):
-        choices=[]
+        choices=[];errors=[]
         for e in self.world.mission.entrances.values():
             if door and e.id!=door:continue
             for target in (e.zone_a,e.zone_b):
                 if room and target!=room:continue
                 draft,error=self.preview_task(ids,e.id,target,method,append=append,item=item)
+                if error:errors.append(error)
                 if draft is not None and not error:
-                    cost=sum(len(self.path(self.actor(i),c,start=self.origin(self.actor(i),append))) for i,c in draft.stacks.items())
+                    cost=sum(self.world.grid.path_cost(self.path(self.actor(i),c,start=self.origin(self.actor(i),append))) for i,c in draft.stacks.items())
                     choices.append((cost,e.id,target,draft))
+        self.entrance_error='；'.join(dict.fromkeys(errors)) or '没有通向该区域的入口'
         return min(choices,key=lambda v:v[:3])[3] if choices else None
 
     def submit_task(self,draft:TaskDraft,append=False):
         fresh,error=self.preview_task(draft.actors,draft.door,draft.room,draft.method,item=draft.item,thrower=draft.thrower,
-                                     landing=draft.landing,sync=draft.sync,opening=draft.opening,append=append)
+                                     landing=draft.landing,sync=draft.sync,opening=draft.opening,append=append,
+                                     after_entry=draft.after_entry,stack_overrides=draft.stack_overrides,entry_overrides=draft.entry_overrides,
+                                     stack_angles=draft.stack_angles,entry_angles=draft.entry_angles)
         if error:return error
         if fresh.item and fresh.landing is None:return "请设置道具落点"
         id_=self.next_id
@@ -311,8 +363,10 @@ class Planner:
 
     def task_label(self,task):
         d=task.draft
+        if d.method=='loot':return f'搜索物资 · {self.world.grid.zones[d.room].label}'
         label={"direct":"直接突入","breach":"破门突入","flash":f"使用{ITEMS[d.item].name if d.item else '物品'}突入",
                "stack":"门外集结","guarddoor":"守住门口","open":"开门","kick":"踹开"}[d.method]
+        if d.method in {'direct','breach','flash'}:label+='并就位' if d.after_entry=='hold' else '并检查威胁'
         return f"{label} · {self.world.grid.zones[d.room].label}"
 
     def related_tasks(self,ids):
@@ -325,13 +379,14 @@ class Planner:
         if not actor.alive or actor.team!=Team.RED or not actor.queue or actor.blocked_reason:return False
         node=actor.queue[0]
         if node.task_id is not None or node.status=="blocked":return False
-        return node.kind in {"move","move_face","face"} or node.kind=="guard" and not node.started
+        return node.kind in {"move","move_face","face"} or node.kind=="guard" and not node.started or (
+            node.kind in {'loot_search','loot_take'} and not node.started and node.status!='allocation')
 
     def takeover_text(self,ids):
         tasks=[self.tasks[i] for i in self.related_tasks(ids)]
         if not tasks:return ""
         members=sorted({i for t in tasks for i in t.draft.actors})
-        return "将取消行动 "+"/".join(str(t.id) for t in tasks)+" · 影响 "+"/".join(map(str,members))+" 号"
+        return "将取消 "+" / ".join(self.task_label(t) for t in tasks)+" · 影响 "+"/".join(map(str,members))+" 号"
 
     def cancel_related(self,ids):
         for id_ in self.related_tasks(ids):self.cancel_task(id_)
@@ -346,9 +401,10 @@ class Planner:
         for i in task.draft.actors:
             a=self.actor(i)
             if a.queue and a.queue[0].task_id==task.id:clear_movement(a)
-            if a.current_action and a.current_action.owner_token==task.token:
+            if a.current_action and a.current_action.owner_token in {task.token, *(job.token for job in task.jobs.values())}:
                 a.current_action=None
                 if a.alive:a.mode=ActorMode.STANDING
+            if i in task.jobs:task.jobs[i].started=False
 
     def suspend_actor(self,actor,reason):
         clear_movement(actor)
@@ -377,7 +433,9 @@ class Planner:
 
     def cancel_actor(self,actor):
         tasks={n.task_id for n in actor.queue if n.task_id in self.tasks}
-        for node in actor.queue:actor.inventory.release(node.token)
+        for node in actor.queue:
+            actor.inventory.release(node.token)
+            self.world.loot.release(node.token)
         actor.queue.clear()
         actor.current_action=None
         if actor.mode==ActorMode.ACTING:actor.mode=ActorMode.STANDING
@@ -387,6 +445,10 @@ class Planner:
         actor.guard_explicit=False
         for id_ in tasks:
             task=self.tasks[id_]
+            for job in [task.jobs.pop(actor.id,None), *task.pickups.pop(actor.id,[])]:
+                if job:
+                    self.world.loot.release(job.token)
+                    if job.kind=='loot_search':task.seen_loot.discard(job.object_id)
             if actor.id in task.draft.actors:
                 index=task.draft.actors.index(actor.id)
                 if index<task.enter_index:task.enter_index-=1
@@ -397,6 +459,8 @@ class Planner:
             if not task.draft.actors:
                 self.tasks.pop(id_,None)
             elif task.phase not in {"done","cancelled"}:
+                if task.draft.method=='loot' and any(i not in task.guards for i in task.draft.actors):
+                    self.assign_search(task)
                 self.suspend_task(task,"成员阵亡，请继续或取消")
 
     def stop(self,ids):
@@ -408,6 +472,8 @@ class Planner:
     def cancel_task(self,id_):
         task=self.tasks.pop(id_,None)
         if not task:return
+        for job in [*task.jobs.values(), *(n for nodes in task.pickups.values() for n in nodes)]:
+            self.world.loot.release(job.token)
         self.world.completed.discard(task.token)
         for actor in self.world.actors:
             index=next((j for j,n in enumerate(actor.queue) if n.task_id==id_),None)
@@ -430,6 +496,12 @@ class Planner:
     def retry_task(self,id_):
         task=self.tasks[id_]
         if any(self.actor(i).stunned>0 or self.actor(i).under_fire_timer>self.world.time for i in task.draft.actors):return "等待震撼或受袭搜索结束"
+        if task.draft.method=='loot':
+            if not any(i not in task.guards for i in task.draft.actors):return '已无搜索者，请取消后重新分工'
+            task.phase='loot';task.reason=''
+            for i in task.draft.actors:self.actor(i).blocked_reason=''
+            for job in task.jobs.values():job.started=False
+            return None
         if task.draft.method in {"direct","breach","flash"} and len(task.draft.actors)<2:return "不足两人，请取消并使用单人指令"
         if task.draft.item and not task.flash_released and task.draft.thrower not in task.draft.actors:return "道具执行者已退出，请重新下达"
         if task.draft.item and not task.flash_released:
@@ -458,6 +530,7 @@ class Planner:
         if node.task_id in self.tasks:self.cancel_task(node.task_id)
         else:
             actor.inventory.release(node.token)
+            self.world.loot.release(node.token)
             actor.queue.pop(index)
             if index==0:
                 actor.current_action=None
@@ -496,7 +569,7 @@ class Planner:
                 return abs(angle_difference(actor.facing,angle))<=.087267
             return True
         previous,elapsed,recalculated=self.stalls.get(actor.id,(actor.position,0.0,False))
-        elapsed=elapsed+dt if previous.distance_to(actor.position)<.01 else 0.0
+        elapsed=elapsed+dt if previous.distance_to(actor.position)<1e-6 else 0.0
         if elapsed>=5:
             actor.blocked_reason="5 秒无移动进展"
             clear_movement(actor)
@@ -524,14 +597,14 @@ class Planner:
         return result
 
     def assign_search(self,task):
-        actors=task.draft.actors
+        actors=[i for i in task.draft.actors if i not in task.guards]
         remaining=list(dict.fromkeys(c for points in task.searches.values() for c in points)) if task.searches else self.observations(task.draft.room)
         task.searches={i:[] for i in actors}
         costs={i:0 for i in actors}
         ends={i:self.position_cell(self.actor(i)) for i in actors}
         for point in remaining:
             i=min(actors,key=lambda i:(costs[i],actors.index(i)))
-            costs[i]+=len(self.path(self.actor(i),point,start=ends[i],zone=task.draft.room))
+            costs[i]+=self.world.grid.path_cost(self.path(self.actor(i),point,start=ends[i],zone=task.draft.room))
             task.searches[i].append(point)
             ends[i]=point
         task.observations={i:0 for i in actors}
@@ -556,11 +629,14 @@ class Planner:
         for c in grid.zones[room].cells:
             if c in occupied or c in taken or not grid.walkable(c) or hypot(c[0]-cell[0],c[1]-cell[1])>2:continue
             path=self.path(actor,c,zone=zone,exclude=task.draft.room if task.phase in {"stack","wait"} else None)
-            if path:candidates.append(((c[0]-cell[0])**2+(c[1]-cell[1])**2,len(path),c[1],c[0],c))
+            if path:candidates.append(((c[0]-cell[0])**2+(c[1]-cell[1])**2,grid.path_cost(path),c[1],c[0],c))
         return min(candidates)[-1] if candidates else cell
 
     def tick_task(self,task,dt):
         w=self.world;d=task.draft
+        if d.method=='loot':
+            w.loot.tick_task(task,dt)
+            return
         if task.phase=="blocked":return
         actors=[self.actor(i) for i in d.actors]
         if not all(a.queue and a.queue[0].task_id==task.id for a in actors):return
@@ -575,8 +651,8 @@ class Planner:
         if task.phase in {"stack","wait"}:
             ready=True
             for index,a in enumerate(actors):
-                d.stacks[a.id]=self.resolve_slot(task,a,d.stacks[a.id],d.stacks.values())
-                facing=d.angle if index<3 else d.angle+3.14159265
+                if a.id not in d.stack_overrides:d.stacks[a.id]=self.resolve_slot(task,a,d.stacks[a.id],d.stacks.values())
+                facing=d.stack_angles.get(a.id,d.angle if index<3 else d.angle+3.14159265)
                 ready=self.drive(a,d.stacks[a.id],dt,angle=facing) and ready
             if ready and not task.ready and d.sync:
                 w.message(f"行动 {task.id} · 同步 {d.sync} 就绪",sound="ready")
@@ -625,8 +701,8 @@ class Planner:
             task.phase="enter"
         if task.phase=="enter":
             for a in actors[:task.enter_index]:
-                d.entries[a.id]=self.resolve_slot(task,a,d.entries[a.id],d.entries.values())
-                if self.drive(a,d.entries[a.id],dt,angle=self.room_angle(d.room,d.entries[a.id])):
+                if a.id not in d.entry_overrides:d.entries[a.id]=self.resolve_slot(task,a,d.entries[a.id],d.entries.values())
+                if self.drive(a,d.entries[a.id],dt,angle=d.entry_angles.get(a.id,self.room_angle(d.room,d.entries[a.id]))):
                     task.entered.add(a.id)
             if task.enter_index<len(actors):
                 a=actors[task.enter_index]
@@ -634,10 +710,11 @@ class Planner:
                 clear=previous is None or (w.grid.zone_id(self.position_cell(previous))==d.room and
                     previous.occupied_cell!=d.inside and previous.move_to!=d.inside and previous.move_from!=d.inside)
                 if clear and w.time-task.released_at>=.25:
-                    self.drive(a,d.entries[a.id],dt,angle=self.room_angle(d.room,d.entries[a.id]))
+                    self.drive(a,d.entries[a.id],dt,angle=d.entry_angles.get(a.id,self.room_angle(d.room,d.entries[a.id])))
                     task.enter_index+=1;task.released_at=w.time
             elif len(task.entered)==len(actors):
-                task.phase="search";self.assign_search(task)
+                if d.after_entry=='hold':self.finish_task(task)
+                else:task.phase="search";self.assign_search(task)
             return
         if task.phase=="search":
             done=True
@@ -682,9 +759,11 @@ class Planner:
             n=a.queue[0]
             if n.kind=="task" or n.status=="blocked":continue
             if a.blocked_reason:n.status="blocked";n.reason=a.blocked_reason;continue
-            n.status="running"
+            if n.status!='allocation':n.status="running"
             done=False
-            if n.kind in {"move","guard","move_face"}:
+            if n.kind.startswith('loot_'):
+                done=w.loot.tick_node(a,n,dt)
+            elif n.kind in {"move","guard","move_face"}:
                 a.guard_explicit=n.angle is not None
                 arrived=self.drive(a,n.cell,dt,angle=n.angle)
                 if arrived and n.kind=="guard":n.started=True
@@ -715,5 +794,26 @@ class Planner:
                         else:n.started=True
             if done:
                 a.inventory.release(n.token)
+                w.loot.release(n.token)
                 a.queue.pop(0)
                 a.blocked_reason=""
+
+    def submit_loot_task(self,ids,room,guards=()):
+        actors=[self.actor(i) for i in dict.fromkeys(ids)]
+        if not actors or any(not a or not a.alive for a in actors):return '请选择存活队员'
+        if room not in self.world.grid.zones:return '无效区域'
+        if any(self.world.grid.zone_id(self.position_cell(a))!=room for a in actors):return '请先让参与者进入目标区域'
+        guards=set(guards)&set(ids)
+        if guards==set(ids):return '至少需要一名搜索者'
+        self.cancel_related(ids)
+        for a in actors:self.cancel_actor(a)
+        id_=self.next_id;self.next_id+=1
+        positions={a.id:self.position_cell(a) for a in actors}
+        anchor=positions[actors[0].id]
+        draft=TaskDraft(list(ids),None,room,'loot',anchor,anchor,dict(positions),dict(positions),0)
+        task=SquadTask(id_,draft,guards=guards)
+        self.assign_search(task)
+        self.tasks[id_]=task
+        for a in actors:a.queue.append(Node(task.token,'task',task_id=id_))
+        self.world.message(self.task_label(task)+' · 已下达')
+        return None

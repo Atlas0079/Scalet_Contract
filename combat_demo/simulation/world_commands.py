@@ -104,6 +104,8 @@ def apply_actor_command(
             part_id=command.part_id,
             owner_token=command.owner_token,
             refill=min(actor.weapon.definition.magazine_size - actor.weapon.ammo, actor.weapon.reserve_ammo),
+            object_id=command.object_id,
+            cargo_id=command.cargo_id,
         )
         actor.mode = ActorMode.ACTING
         clear_movement(actor)

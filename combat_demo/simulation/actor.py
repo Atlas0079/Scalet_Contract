@@ -100,6 +100,10 @@ class ActionType(Enum):
     VAULT_LOW_WALL = "vault_low_wall"
     OPEN_DOOR = "open_door"
     KICK_DOOR = "kick_door"
+    SEARCH_LOOT = "search_loot"
+    TRANSFER_ITEM = "transfer_item"
+    DROP_ITEM = "drop_item"
+    EQUIP_ITEM = "equip_item"
 
 
 class InterruptPolicy(Enum):
@@ -122,6 +126,8 @@ class ActorAction:
     part_id: str | None = None
     owner_token: str | None = None
     refill: int = 0
+    object_id: str | None = None
+    cargo_id: str | None = None
 
     @property
     def progress(self) -> float:
@@ -170,6 +176,7 @@ class Actor:
     move_from: tuple[int, int] | None = None
     move_to: tuple[int, int] | None = None
     move_progress: float = 0.0
+    crowd_slow_remaining: float = 0.0
     state: ActorState = ActorState.IDLE
     target_id: int | None = None
     target_cell: tuple[int, int] | None = None
@@ -228,6 +235,7 @@ class Actor:
     task_id: int | None = None
     blocked_reason: str = ""
     hit_flash: float = 0.0
+    death_anchor: tuple[int, int] | None = None
 
     @property
     def alive(self) -> bool:
@@ -235,6 +243,9 @@ class Actor:
 
     def mark_dead_if_needed(self) -> None:
         if self.body.dead:
+            anchors = [c for c in (self.occupied_cell, self.move_from, self.move_to) if c is not None]
+            if anchors:
+                self.death_anchor = min(anchors, key=lambda c: ((c[0]+.5-self.position.x)**2+(c[1]+.5-self.position.y)**2,c[1],c[0]))
             self.state = ActorState.DEAD
             self.mode = ActorMode.DEAD
             self.occupied_cell = None

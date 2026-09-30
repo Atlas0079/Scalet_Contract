@@ -32,3 +32,5 @@ class ActorCommand:
     part_id: str | None = None
     owner_token: str | None = None
     path: tuple[tuple[int, int], ...] | None = None
+    object_id: str | None = None
+    cargo_id: str | None = None

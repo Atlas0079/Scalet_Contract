@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections import deque
+from heapq import heappop, heappush
 from dataclasses import dataclass, field
 from enum import Enum
-from math import floor, inf
+from math import floor, hypot, inf
 from random import Random
 
 from .geometry import Vec2
@@ -29,6 +29,7 @@ DIRS: dict[str, tuple[int, int]] = {
     "W": (-1, 0),
 }
 OPPOSITE = {"N": "S", "S": "N", "E": "W", "W": "E"}
+MOVE_DIRS = ((0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1))
 
 
 @dataclass
@@ -120,6 +121,7 @@ class GridMap:
     zone_cells: dict[tuple[int, int], str] = field(default_factory=dict)
     revision: int = 0
     _path_cache: dict = field(default_factory=dict)
+    terrain_speed: dict[tuple[int, int], float] = field(default_factory=dict)
 
     def _make_id(self, prefix: str) -> str:
         self._next_id += 1
@@ -227,12 +229,34 @@ class GridMap:
             height=0.0,
         )
 
-    def can_move(self, a: tuple[int, int], b: tuple[int, int]) -> bool:
-        edge = self.edge_feature_between(a, b)
-        if edge is not None and edge.blocks_movement:
+    def can_move(self, a: tuple[int, int], b: tuple[int, int], *,
+                 allow_vault=False, allow_doors=False, known_doors=None) -> bool:
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        if (dx, dy) not in MOVE_DIRS or not self.in_bounds(a) or not self.walkable(b):
             return False
-        target = self.cell_feature_at(b)
-        return not (target is not None and target.blocks_movement)
+        if dx and dy:
+            horizontal, vertical = (b[0], a[1]), (a[0], b[1])
+            # One clear side permits corner cutting; two blocked sides do not.
+            # Vaulting/opening is a cardinal interaction, never a diagonal hop.
+            return any(self.walkable(side)
+                       and self.can_move(a, side, known_doors=known_doors)
+                       and self.can_move(side, b, known_doors=known_doors)
+                       for side in (horizontal, vertical))
+        edge = self.edge_feature_between(a, b)
+        if edge and edge.interactive_id and known_doors is not None:
+            if known_doors.get(edge.interactive_id) not in {"open", "broken"}:
+                return False
+        return (edge is None or not edge.blocks_movement
+                or (allow_vault and edge.height <= 1.25)
+                or (allow_doors and edge.interactive_id is not None))
+
+    def step_cost(self, a, b):
+        return hypot(b[0]-a[0], b[1]-a[1]) * (.5/self.terrain_speed.get(a, 1.0) + .5/self.terrain_speed.get(b, 1.0))
+
+    def path_cost(self, path: list[tuple[int, int]]) -> float:
+        if not path:
+            return inf
+        return sum(self.step_cost(a, b) for a, b in zip(path, path[1:]))
 
     def can_vault(self, a: tuple[int, int], b: tuple[int, int]) -> bool:
         edge = self.edge_feature_between(a, b)
@@ -318,21 +342,14 @@ class GridMap:
         cell: tuple[int, int],
         allow_vault: bool = False,
         allow_doors: bool = False,
+        known_doors: dict[str, str] | None = None,
     ) -> list[tuple[int, int]]:
         result = []
-        for dx, dy in DIRS.values():
+        for dx, dy in MOVE_DIRS:
             other = (cell[0] + dx, cell[1] + dy)
-            if self.edge_between(cell, other) is None:
-                continue
-            edge = self.edge_feature_between(cell, other)
-            cell_feature = self.cell_feature_at(other)
-            if cell_feature is not None and cell_feature.blocks_movement:
-                continue
-            if edge is None or not edge.blocks_movement or (allow_vault and edge.height <= 1.25) or (
-                allow_doors and edge.interactive_id is not None
-            ):
-                if self.in_bounds(other):
-                    result.append(other)
+            if self.can_move(cell, other, allow_vault=allow_vault,
+                             allow_doors=allow_doors, known_doors=known_doors):
+                result.append(other)
         return result
 
     def find_path(self, start, goal, blocked=None, allow_vault=False, allow_doors=False,
@@ -355,27 +372,45 @@ class GridMap:
         allowed_cells: set[tuple[int, int]] | None = None,
         known_doors: dict[str, str] | None = None,
     ) -> list[tuple[int, int]]:
+        if not self.in_bounds(start) or not self.walkable(goal):
+            return []
+        if allowed_cells is not None and (start not in allowed_cells or goal not in allowed_cells):
+            return []
         if start == goal:
             return [start]
         blocked = blocked or set()
-        frontier: deque[tuple[int, int]] = deque([start])
+        frontier = [(hypot(goal[0]-start[0], goal[1]-start[1]), 0.0, start[1], start[0])]
+        costs = {start: 0.0}
         came_from: dict[tuple[int, int], tuple[int, int] | None] = {start: None}
         while frontier:
-            current = frontier.popleft()
-            for nxt in self.neighbors(current, allow_vault=allow_vault, allow_doors=allow_doors):
+            _, cost, y, x = heappop(frontier)
+            current = (x, y)
+            if cost > costs[current] + 1e-9:
+                continue
+            if current == goal:
+                break
+            for nxt in self.neighbors(current, allow_vault=allow_vault, allow_doors=allow_doors,
+                                      known_doors=known_doors):
                 if allowed_cells is not None and nxt not in allowed_cells:
                     continue
-                if known_doors is not None:
-                    feature = self.edge_feature_between(current, nxt)
-                    if feature and feature.interactive_id and known_doors.get(feature.interactive_id) not in {"open", "broken"}:
+                if current[0] != nxt[0] and current[1] != nxt[1]:
+                    sides = ((nxt[0], current[1]), (current[0], nxt[1]))
+                    # The physically clear side must also satisfy the path's
+                    # region/obstruction restrictions (not the opposite side).
+                    if not any(c not in blocked and (allowed_cells is None or c in allowed_cells)
+                               and self.walkable(c)
+                               and self.can_move(current, c, known_doors=known_doors)
+                               and self.can_move(c, nxt, known_doors=known_doors) for c in sides):
                         continue
-                if nxt in came_from or (nxt in blocked and nxt != goal):
+                if nxt in blocked and nxt != goal:
                     continue
+                new_cost = cost + self.step_cost(current, nxt)
+                if new_cost >= costs.get(nxt, inf) - 1e-9:
+                    continue
+                costs[nxt] = new_cost
                 came_from[nxt] = current
-                if nxt == goal:
-                    frontier.clear()
-                    break
-                frontier.append(nxt)
+                heappush(frontier, (new_cost + hypot(goal[0]-nxt[0], goal[1]-nxt[1]),
+                                    new_cost, nxt[1], nxt[0]))
         if goal not in came_from:
             return []
         path = [goal]

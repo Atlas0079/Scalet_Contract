@@ -1,0 +1,14 @@
+{
+  "rifle_ammo": {
+    "name": "试验步枪弹",
+    "mass": 0.012,
+    "speed_mps": 300.0,
+    "damage": 35.0,
+    "tracer_every_n_shots": 1,
+    "tracer_presentation": "warm_tracer",
+    "accuracy_degrees": [
+      0.15,
+      0.15
+    ]
+  }
+}

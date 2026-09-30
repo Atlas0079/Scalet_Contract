@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from heapq import heappop, heappush
+from math import hypot, inf
 from .actor import ActionType, Actor, ActorAction, ActorMode, IntentType, InterruptPolicy
 from .geometry import rotate_toward
 from .map import GridMap
@@ -10,9 +12,12 @@ def is_moving_between_cells(actor: Actor, grid: GridMap) -> bool:
     return actor.mode == ActorMode.MOVING
 
 
-def update_actor_movement(actor: Actor, grid: GridMap, actors: list[Actor], dt: float, *, rotate: bool = True) -> None:
+def update_actor_movement(actor: Actor, grid: GridMap, actors: list[Actor], dt: float, *, rotate: bool = True,
+                          distance_budget: float | None = None) -> None:
     if not actor.alive or actor.stunned > 0:
         return
+    if distance_budget is None:
+        distance_budget = movement_allowances(actors, grid, dt)[actor.id]
     if actor.mode == ActorMode.STANDING and actor.route:
         next_cell = next((cell for cell in actor.route if cell != actor.occupied_cell), None)
         if next_cell is None:
@@ -39,13 +44,16 @@ def update_actor_movement(actor: Actor, grid: GridMap, actors: list[Actor], dt: 
     distance = max(0.0001, start.distance_to(end))
     actor.move_progress = min(
         1.0,
-        actor.move_progress + actor.speed * actor.body.derived_stats().movement_efficiency * crowd_speed_multiplier(actor, actors) * dt / distance,
+        actor.move_progress + distance_budget / distance,
     )
+    if actor.move_progress >= 1.0 - 1e-9:
+        actor.move_progress = 1.0
     actor.position = start + (end - start) * actor.move_progress
-    actor.aim_error_degrees = min(
-        actor.max_aim_error_degrees,
-        actor.aim_error_degrees + actor.move_aim_penalty_degrees_per_second * dt,
-    )
+    if distance_budget > 0:
+        actor.aim_error_degrees = min(
+            actor.max_aim_error_degrees,
+            actor.aim_error_degrees + actor.move_aim_penalty_degrees_per_second * dt,
+        )
     if rotate:
         actor.facing = rotate_toward(actor.facing, (end - start).angle(), actor.turn_speed * dt)
 
@@ -156,16 +164,66 @@ def blocked_final_cells(actor: Actor, actors: list[Actor], grid: GridMap) -> set
     return cells
 
 
-def crowd_speed_multiplier(actor: Actor, actors: list[Actor]) -> float:
-    multiplier = 1.0
-    for other in actors:
-        if not other.alive or other.id == actor.id:
-            continue
-        distance = actor.position.distance_to(other.position)
-        shoulder_room = actor.radius + other.radius + 0.18
-        if distance < shoulder_room:
-            multiplier = min(multiplier, 0.45)
-    return multiplier
+def _movement_speed(actor: Actor, grid: GridMap, actors: list[Actor]) -> float:
+    if not actor.alive or actor.stunned > 0 or actor.current_action is not None:
+        return 0.0
+    if actor.mode == ActorMode.MOVING:
+        if actor.move_from is None or actor.move_to is None:
+            return 0.0
+    elif actor.mode == ActorMode.STANDING and actor.route:
+        target = next((c for c in actor.route if c != actor.occupied_cell), None)
+        if target is None or not grid.can_move(actor.occupied_cell, target):
+            return 0.0
+        if target == actor.reserved_cell and target in stationary_occupied_cells(actor, actors, grid):
+            return 0.0
+    else:
+        return 0.0
+    return max(0.0, actor.speed * actor.body.derived_stats().movement_efficiency
+               * grid.terrain_speed.get(grid.cell_of(actor.position), 1.0))
+
+
+def movement_allowances(actors: list[Actor], grid: GridMap, dt: float) -> dict[int, float]:
+    """Each overlapping pair slows only its slower mover; ties use actor ID.
+
+    Decide from one snapshot so iteration order cannot slow both members of
+    a pair. The 0.45 multiplier lasts another 0.5 simulation seconds after
+    overlap ends; repeated contact refreshes it, never stacks it.
+    """
+    speeds = {a.id: _movement_speed(a, grid, actors) for a in actors}
+    slowed_ids = set()
+    living = [a for a in actors if a.alive]
+    for index, a in enumerate(living):
+        for b in living[index+1:]:
+            if a.position.distance_to(b.position) >= a.radius + b.radius + .18:
+                continue
+            cell_a, cell_b = grid.cell_of(a.position), grid.cell_of(b.position)
+            if cell_a != cell_b and not grid.can_move(cell_a, cell_b):
+                continue
+            movers = [unit for unit in (a, b) if speeds[unit.id] > 0]
+            if movers:
+                # Comparing speed before crowding also separates unequal-speed
+                # pairs instead of accidentally reducing the faster to a tie.
+                slowed = min(movers, key=lambda unit: (speeds[unit.id], -unit.id))
+                slowed_ids.add(slowed.id)
+    distances = {}
+    dt = max(0.0, dt)
+    for a in actors:
+        if not a.alive:
+            a.crowd_slow_remaining = 0.0
+        if a.id in slowed_ids:
+            a.crowd_slow_remaining = .5
+            slow_time = dt
+        else:
+            slow_time = min(dt, a.crowd_slow_remaining)
+            a.crowd_slow_remaining = max(0.0, a.crowd_slow_remaining - dt)
+            if a.crowd_slow_remaining < 1e-9:
+                a.crowd_slow_remaining = 0.0
+        # Split the final timer step so a large dt cannot prolong the effect.
+        distance = speeds[a.id] * (.45 * slow_time + dt - slow_time)
+        if a.mode == ActorMode.MOVING and a.move_to is not None:
+            distance = min(distance, a.position.distance_to(grid.cell_center(a.move_to)))
+        distances[a.id] = distance
+    return distances
 
 
 def find_available_target(
@@ -200,20 +258,21 @@ def reachable_cells_within(
 ) -> list[tuple[int, int]]:
     start = actor.occupied_cell or actor.move_to or grid.cell_of(actor.position)
     blocked = blocked_final_cells(actor, actors, grid)
-    visited = {start}
-    frontier = [(start, 0)]
-    result = [start]
+    costs = {start: 0.0}
+    frontier = [(0.0, start)]
+    result = []
     while frontier:
-        current, distance = frontier.pop(0)
-        if distance >= radius:
+        distance, current = heappop(frontier)
+        if distance > costs[current] + 1e-9:
             continue
+        if current == start or current not in blocked:
+            result.append(current)
         for neighbor in grid.neighbors(current):
-            if neighbor in visited:
+            new_cost = distance + grid.step_cost(current, neighbor)
+            if new_cost > radius + 1e-9 or new_cost >= costs.get(neighbor, inf) - 1e-9:
                 continue
-            visited.add(neighbor)
-            if neighbor not in blocked:
-                result.append(neighbor)
-            frontier.append((neighbor, distance + 1))
+            costs[neighbor] = new_cost
+            heappush(frontier, (new_cost, neighbor))
     return result
 
 

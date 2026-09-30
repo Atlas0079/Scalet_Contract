@@ -1,0 +1,52 @@
+{
+  "operator": {
+    "character": "human",
+    "weapon": "rifle",
+    "reserve_ammo": 90,
+    "items": {
+      "flashbang": 1,
+      "bandage": 1
+    },
+    "skills": {
+      "shooting": 10000,
+      "medicine": 10000,
+      "repair": 0,
+      "hacking": 0,
+      "sia_control": 0,
+      "psionics": 0
+    },
+    "sources": []
+  },
+  "guard": {
+    "character": "human",
+    "weapon": "rifle",
+    "reserve_ammo": 60,
+    "items": {},
+    "skills": {
+      "shooting": 10000,
+      "medicine": 10000,
+      "repair": 0,
+      "hacking": 0,
+      "sia_control": 0,
+      "psionics": 0
+    },
+    "sources": [
+      "guard_reaction"
+    ]
+  },
+  "test_operator": {
+    "character": "human",
+    "weapon": "test_carbine",
+    "reserve_ammo": 90,
+    "items": {},
+    "skills": {
+      "shooting": 10000,
+      "medicine": 10000,
+      "repair": 0,
+      "hacking": 0,
+      "sia_control": 0,
+      "psionics": 0
+    },
+    "sources": []
+  }
+}

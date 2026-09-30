@@ -265,7 +265,7 @@ class DragInterfaceTests(unittest.TestCase):
 
     def test_threshold_and_commit_only_on_release(self):
         a=self.app;point=a.pos((30.5,32.5))
-        for distance,expect in ((15,None),(16,0)):
+        for distance,expect in ((a.scale*.49,None),(a.scale*.51,0)):
             a.world.planner.stop([1]);self.down(point)
             self.assertFalse(a.world.actor(1).queue)
             self.up((point[0]+distance,point[1]))

@@ -1,0 +1,242 @@
+{
+  "rules": {
+    "base": {
+      "force_n": 1000,
+      "carry_capacity_kg": 18,
+      "move_speed_mps": 2,
+      "acceleration_mps2": 10,
+      "turn_speed_radps": 4.1887902047863905,
+      "view_distance_m": 12,
+      "response_delay_seconds": 0.25,
+      "aim_gain_per_second": 1.25,
+      "aim_unsettled_degrees": [
+        6,
+        5
+      ],
+      "aim_settled_degrees": [
+        0.2,
+        0.2
+      ]
+    },
+    "aim": {
+      "curve_power": 2,
+      "movement_loss_per_m": 0.9,
+      "turn_loss_per_degree": 0.008,
+      "switch_retention": 0.35,
+      "idle_decay_per_second": 0.5,
+      "minimum_fire_progress": 0.55,
+      "drift_interval_seconds": 0.65
+    },
+    "state": {
+      "fatigue_loss": 0.5,
+      "heat_loss": 0.7,
+      "energy_full_threshold": 0.1,
+      "metabolic_loss": 0.5,
+      "stress_loss": 0.4,
+      "pain_loss": 0.4
+    },
+    "skill_factor": {
+      "base": 0.5,
+      "per_level": 0.05
+    },
+    "sia_factor": {
+      "base": 0.5,
+      "per_level": 0.025
+    },
+    "recoil_control": {
+      "response_delay_seconds": 0.25,
+      "build_seconds": 0.35,
+      "max_acceleration_degrees_per_second2": 180.0,
+      "return_frequency": 8.0,
+      "memory_decay_seconds": 0.6,
+      "burst_gap_seconds": 0.35
+    }
+  },
+  "profiles": {
+    "human": {
+      "name": "人类",
+      "body": "human",
+      "presentation": "humanoid",
+      "radius_m": 0.32,
+      "height_m": 1.8,
+      "eye_height_m": 1.65,
+      "view_angle_degrees": 120.0,
+      "movement_angle_curve": [
+        [
+          0,
+          1
+        ],
+        [
+          45,
+          1
+        ],
+        [
+          90,
+          0.7
+        ],
+        [
+          180,
+          0.5
+        ]
+      ],
+      "muzzle_height_m": 1.35,
+      "chest_height_fraction": 0.7,
+      "species": "human",
+      "rule_id": "human_v1",
+      "attributes": {
+        "muscle": 100,
+        "endurance": 100,
+        "coordination": 100,
+        "senses": 100,
+        "resolve": 100,
+        "psi_potential": 100
+      },
+      "state_defaults": {
+        "fatigue": 0
+      },
+      "recipes": {
+        "muscle": {
+          "innate": 1.0
+        },
+        "endurance": {
+          "innate": 1.0
+        },
+        "coordination": {
+          "innate": 1.0
+        },
+        "senses": {
+          "innate": 1.0
+        }
+      }
+    },
+    "android": {
+      "name": "仿生人",
+      "body": "android",
+      "presentation": "humanoid",
+      "radius_m": 0.32,
+      "height_m": 1.8,
+      "eye_height_m": 1.65,
+      "view_angle_degrees": 120.0,
+      "movement_angle_curve": [
+        [
+          0,
+          1
+        ],
+        [
+          80,
+          1
+        ],
+        [
+          120,
+          0.9
+        ],
+        [
+          180,
+          0.75
+        ]
+      ],
+      "muzzle_height_m": 1.35,
+      "chest_height_fraction": 0.7,
+      "species": "android",
+      "rule_id": "android_v1",
+      "attributes": {
+        "muscle_fiber_output": 220,
+        "neural_speed": 150,
+        "fine_control": 140,
+        "senses": 120,
+        "circulation_efficiency": 120,
+        "tissue_stability": 120,
+        "resolve": 120
+      },
+      "state_defaults": {
+        "artificial_blood": 1,
+        "metabolic_load": 0,
+        "circulation_fault": 0
+      },
+      "recipes": {
+        "muscle_fiber_output": {
+          "left_upper_arm": 0.5,
+          "right_upper_arm": 0.5
+        },
+        "neural_speed": {
+          "processor": 1.0
+        },
+        "fine_control": {
+          "left_hand": 0.5,
+          "right_hand": 0.5
+        },
+        "senses": {
+          "eyes": 1.0
+        },
+        "circulation_efficiency": {
+          "power_core": 1.0
+        },
+        "tissue_stability": {
+          "thorax": 1.0
+        }
+      }
+    },
+    "robot": {
+      "name": "全向机器人",
+      "body": "robot",
+      "presentation": "humanoid",
+      "radius_m": 0.32,
+      "height_m": 1.8,
+      "eye_height_m": 1.65,
+      "view_angle_degrees": 120.0,
+      "movement_angle_curve": [
+        [
+          0,
+          1
+        ],
+        [
+          180,
+          1
+        ]
+      ],
+      "muzzle_height_m": 1.35,
+      "chest_height_fraction": 0.7,
+      "species": "robot",
+      "rule_id": "robot_v1",
+      "attributes": {
+        "actuator_output": 180,
+        "drive_efficiency": 100,
+        "servo_precision": 100,
+        "sensor_quality": 100,
+        "cooling": 100,
+        "em_shielding": 100,
+        "control_security": 100
+      },
+      "state_defaults": {
+        "heat": 0,
+        "energy": 1,
+        "electronic_fault": 0
+      },
+      "recipes": {
+        "actuator_output": {
+          "gripper_left": 0.5,
+          "gripper_right": 0.5
+        },
+        "drive_efficiency": {
+          "motor_left": 0.5,
+          "motor_right": 0.5
+        },
+        "servo_precision": {
+          "controller": 1.0
+        },
+        "sensor_quality": {
+          "optic": 1.0
+        },
+        "cooling": {
+          "frame": 1.0
+        },
+        "em_shielding": {
+          "frame": 1.0
+        },
+        "control_security": {
+          "controller": 1.0
+        }
+      }
+    }
+  }
+}

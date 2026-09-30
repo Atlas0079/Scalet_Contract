@@ -1,0 +1,54 @@
+{
+  "definitions": {
+    "shooting": {
+      "name": "射击"
+    },
+    "medicine": {
+      "name": "医疗"
+    },
+    "repair": {
+      "name": "维修"
+    },
+    "hacking": {
+      "name": "骇客"
+    },
+    "sia_control": {
+      "name": "SIA 操控"
+    },
+    "psionics": {
+      "name": "灵能"
+    }
+  },
+  "level": {
+    "max": 20,
+    "xp_scale": 100,
+    "xp_max": 40000
+  },
+  "channels": {
+    "robot": {
+      "controller": 0.3,
+      "memory": 0.7
+    },
+    "android": {
+      "controller": 0.7,
+      "memory": 0.3
+    }
+  },
+  "experience": {
+    "shooting_per_shot": 1,
+    "work_per_second": 1,
+    "sia_extra": 0.25
+  },
+  "psionic_xp_policy": {
+    "enabled": false
+  },
+  "sia_synchronization": {
+    "initial_ceiling": 0.6,
+    "xp_to_max": 10000,
+    "xp_per_active_second": 1,
+    "connect_sync": 0.3,
+    "recovery_per_second": 0.03,
+    "quality_loss_per_second": 0.05,
+    "damage_loss_scale": 0.25
+  }
+}

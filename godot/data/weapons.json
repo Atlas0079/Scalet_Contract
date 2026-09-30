@@ -1,0 +1,68 @@
+{
+  "rifle": {
+    "item": {
+      "id": "rifle",
+      "name": "步枪",
+      "item_kind": "weapon",
+      "mass": 3.8
+    },
+    "fire_interval": 0.25,
+    "magazine_size": 30,
+    "reload_time": 2.5,
+    "range": 18.0,
+    "gunshot_radius": 14.0,
+    "ammunition": "rifle_ammo",
+    "muzzle_velocity_multiplier": 1.0,
+    "presentation": "rifle",
+    "category": "rifle",
+    "accuracy_degrees": [
+      0.45,
+      0.4
+    ],
+    "attachments": [],
+    "recoil": {
+      "impulse_degrees_per_second": [
+        3.6,
+        13.0
+      ],
+      "max_offset_degrees": [
+        12.0,
+        18.0
+      ],
+      "passive_return_frequency": 4.0
+    }
+  },
+  "test_carbine": {
+    "item": {
+      "id": "test_carbine",
+      "name": "试验卡宾枪",
+      "item_kind": "weapon",
+      "mass": 3.2
+    },
+    "fire_interval": 0.1,
+    "magazine_size": 30,
+    "reload_time": 2.5,
+    "range": 16.0,
+    "gunshot_radius": 14.0,
+    "ammunition": "rifle_ammo",
+    "muzzle_velocity_multiplier": 1.0,
+    "presentation": "rifle",
+    "category": "rifle",
+    "accuracy_degrees": [
+      0.45,
+      0.4
+    ],
+    "attachments": [],
+    "recoil": {
+      "impulse_degrees_per_second": [
+        3.6,
+        13.0
+      ],
+      "max_offset_degrees": [
+        12.0,
+        18.0
+      ],
+      "passive_return_frequency": 4.0
+    }
+  }
+}

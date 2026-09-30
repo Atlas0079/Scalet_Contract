@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from .weapon import ItemDefinition, RIFLE
+from .weapon import ItemDefinition, RIFLE, WeaponState
 
 
 @dataclass(frozen=True)
@@ -44,6 +44,9 @@ ITEMS = {
 class Inventory:
     quantities: dict[str, int] = field(default_factory=lambda: {"flashbang": 1, "bandage": 1})
     reservations: dict[str, tuple[str, int]] = field(default_factory=dict)
+    cargo: dict[str, 'CargoItem'] = field(default_factory=dict)
+    capacity: float = 18.0
+    equipped_id: str = ""
 
     def reserved(self, item: str) -> int:
         return sum(q for i, q in self.reservations.values() if i == item)
@@ -80,3 +83,30 @@ class Inventory:
 def use_for(item: str, action: str | None = None) -> UseDefinition:
     definition = ITEMS[item]
     return next(u for u in definition.uses if action is None or u.id == action)
+
+
+LOOT_KINDS = {
+    'rifle': ('步枪', 3.8), 'rifle_ammo': ('步枪弹药', .012),
+    'flashbang': ('闪光弹', .4), 'bandage': ('包扎用品', .2),
+    'parts': ('机械零件', 2.0), 'intel': ('档案资料', .3),
+}
+
+
+@dataclass
+class CargoItem:
+    id: str
+    kind: str
+    quantity: int = 1
+    weapon: WeaponState | None = None
+
+    @property
+    def name(self):
+        name = LOOT_KINDS[self.kind][0]
+        if self.weapon is not None:
+            name += f' · 弹匣 {self.weapon.ammo}'
+        return name
+
+    @property
+    def weight(self):
+        return LOOT_KINDS[self.kind][1] * self.quantity + (
+            .012 * (self.weapon.ammo + self.weapon.reserve_ammo) if self.weapon else 0)

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import pygame as pg
 
 BG="#071112"; LINE="#36585B"; ACCENT="#9DFFE3"; TEXT="#DCF7EE"
-WARN="#E8B86A"; ENEMY="#FF796E"; DIM="#627A78"; PANEL="#0C191B"
+WARN="#E8B86A"; ENEMY="#FF796E"; DIM="#819C99"; PANEL="#0C191B"
 
 
 @dataclass
@@ -49,7 +49,7 @@ class ContextMenu:
 
     def update(self,pos,now):
         hit=self.hit(pos)
-        if hit!=self.hover:self.hover=hit;self.since=now
+        if hit!=self.hover:self.hover=hit;self.since=now;self.keyboard=None
         if hit and hit[1]>=0:
             self.outside_since=now
             if hit[0]==0 and now-self.since>=180:
@@ -59,6 +59,9 @@ class ContextMenu:
     def activate(self,hit):
         if hit is None or hit[1]<0:return None
         level,index=hit
+        if level==1 and self.branch is None:return None
+        entries=self.entries if level==0 else self.entries[self.branch].children
+        if not 0<=index<len(entries):return None
         entry=(self.entries if level==0 else self.entries[self.branch].children)[index]
         if entry.children:self.branch=index;self.keyboard=(1,0);return None
         reason=entry.reason()
@@ -68,7 +71,10 @@ class ContextMenu:
 
     def key(self,key):
         level,index=self.keyboard or (0,0)
+        if level==1 and self.branch is None:level,index=0,0
         entries=self.entries if level==0 or self.branch is None else self.entries[self.branch].children
+        if not entries:return None
+        index=min(index,len(entries)-1)
         if key in (pg.K_UP,pg.K_DOWN): index=(index+(1 if key==pg.K_DOWN else -1))%len(entries)
         if key==pg.K_LEFT:level=0;index=self.branch or 0;self.branch=None
         self.keyboard=(level,index)

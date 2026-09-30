@@ -1,0 +1,66 @@
+{
+  "items": {
+    "flashbang": {
+      "item": {
+        "id": "flashbang",
+        "name": "闪光弹",
+        "item_kind": "consumable",
+        "mass": 0.0
+      },
+      "order": 20,
+      "uses": [
+        {
+          "id": "throw",
+          "label": "投掷…",
+          "target": "ground",
+          "duration": 0.6,
+          "cost": 1,
+          "range": 6.0,
+          "radius": 4.0,
+          "breach": true,
+          "effect": "flash"
+        }
+      ]
+    },
+    "bandage": {
+      "item": {
+        "id": "bandage",
+        "name": "包扎用品",
+        "item_kind": "consumable",
+        "mass": 0.0
+      },
+      "order": 30,
+      "uses": [
+        {
+          "id": "bandage",
+          "label": "自行包扎",
+          "target": "self",
+          "duration": 3.0,
+          "cost": 1,
+          "range": 0.0,
+          "radius": 0.0,
+          "breach": false,
+          "effect": "heal"
+        }
+      ]
+    }
+  },
+  "loot_kinds": {
+    "flashbang": [
+      "闪光弹",
+      0.4
+    ],
+    "bandage": [
+      "包扎用品",
+      0.2
+    ],
+    "parts": [
+      "机械零件",
+      2.0
+    ],
+    "intel": [
+      "档案资料",
+      0.3
+    ]
+  }
+}

@@ -26,7 +26,7 @@ from .commands import ActorCommand, CommandType
 from .combat import ExplosionEvent, FloatingText, ShotEvent, SoundEvent, resolve_shot, point_segment_distance
 from .geometry import Vec2, angle_to, angle_difference, rotate_toward
 from .map import GridMap, InteractableState, create_breach_map, create_demo_map, create_maze_map
-from .movement import clear_movement, update_actor_movement
+from .movement import clear_movement, update_actor_movement, movement_allowances
 from .weapon import RIFLE, WeaponState
 from .world_commands import apply_actor_command, set_intent
 
@@ -42,6 +42,7 @@ class World:
     time: float = 0.0
     tick_index: int = 0
     winner: Team | None = None
+    combat_cleared: bool = False
     rng: Random = field(default_factory=lambda: Random(7))
     scenario_name: str = "demo"
     mission: object | None = None
@@ -65,6 +66,8 @@ class World:
         from .perception import Perception
         self.planner=Planner(self)
         self.perception=Perception()
+        from .loot import LootSystem
+        self.loot=LootSystem(self)
         self._actors={actor.id:actor for actor in self.actors}
         for actor in self.actors:
             if actor.occupied_cell is None and actor.mode==ActorMode.STANDING:
@@ -122,6 +125,7 @@ class World:
                 self._flash(projectile)
                 self.projectiles.remove(projectile)
         self.perception.refresh(self,dt)
+        self.loot.refresh()
         if self.tick_index%6==0:
             for a in self.actors:
                 if a.ai_enabled:update_enemy(self,a)
@@ -129,9 +133,12 @@ class World:
         for a in self.actors:
             if not a.alive:continue
             if a.team==Team.RED and self.has_threat(a) and not self.planner.micro_controls_motion(a):clear_movement(a)
+        distances=movement_allowances(self.actors,self.grid,dt)
+        for a in self.actors:
+            if not a.alive:continue
             if a.current_action is None:
                 before=a.position
-                update_actor_movement(a,self.grid,self.actors,dt,rotate=False)
+                update_actor_movement(a,self.grid,self.actors,dt,rotate=False,distance_budget=distances[a.id])
                 self.observe(a,dt,a.position-before)
         self.perception.refresh(self,0.0)
         for a in sorted(self.actors,key=lambda actor:actor.id):
@@ -140,6 +147,7 @@ class World:
             if not a.alive and a.id not in self.deaths_processed:
                 self.deaths_processed.add(a.id)
                 self.planner.cancel_actor(a)
+                self.loot.corpse(a)
                 if a.team==Team.RED:
                     self.message(f"{a.id} {a.name} 阵亡",sound="hit")
                     self.pause_requested=True
@@ -288,11 +296,15 @@ class World:
         parts=[p for p in a.body.wounded_parts("bleeds") if not p.destroyed]
         return min(parts,key=lambda p:(-p.missing_hp,p.definition.id)).definition.id if parts else None
 
-    def start_action(self,a,kind,duration,token,*,item=None,cell=None,door=None):
+    def start_action(self,a,kind,duration,token,*,item=None,cell=None,door=None,object_id=None,cargo_id=None):
         if not a.alive:return "执行者死亡"
         if a.stunned>0:return "等待震撼结束"
         if a.mode!=ActorMode.STANDING or a.current_action:return "执行者尚未站定"
         part=None
+        if kind in {ActionType.SEARCH_LOOT,ActionType.TRANSFER_ITEM,ActionType.DROP_ITEM,ActionType.EQUIP_ITEM}:
+            error=self.loot.action_error(a,kind,token,object_id,cargo_id)
+            if error:return error
+            duration/=a.body.derived_stats().manipulation_efficiency
         if kind==ActionType.RELOAD:
             if a.weapon.reserve_ammo<=0:return "储备弹药耗尽"
             duration=duration/a.body.derived_stats().manipulation_efficiency
@@ -305,7 +317,8 @@ class World:
             error=self.planner.throw_error(a,item,cell,room=self.grid.zone_id(cell))
             if error:return error
         error=self.apply_command(ActorCommand(a.id,CommandType.START_ACTION,"执行计划",target_position=self.grid.cell_center(cell) if cell else None,
-                     action_type=kind,duration=duration,door_id=door,item_id=item,part_id=part,owner_token=token))
+                     action_type=kind,duration=duration,door_id=door,item_id=item,part_id=part,owner_token=token,
+                     object_id=object_id,cargo_id=cargo_id))
         if not error and kind==ActionType.RELOAD:self.audio_events.append("reload")
         return error
 
@@ -325,7 +338,10 @@ class World:
         if action.timer+1e-9<action.duration:return
         token=action.owner_token
         kind=action.type
-        if kind==ActionType.RELOAD:
+        if kind in {ActionType.SEARCH_LOOT,ActionType.TRANSFER_ITEM,ActionType.DROP_ITEM,ActionType.EQUIP_ITEM}:
+            error=self.loot.complete_action(a,action)
+            if error:self.interrupt(a,error);return
+        elif kind==ActionType.RELOAD:
             refill=min(action.refill,a.weapon.reserve_ammo,a.weapon.definition.magazine_size-a.weapon.ammo)
             a.weapon.ammo+=refill;a.weapon.reserve_ammo-=refill
         elif kind==ActionType.BANDAGE:
@@ -387,10 +403,15 @@ class World:
         red_alive=any(a.alive and a.team==Team.RED for a in self.actors)
         blue_alive=any(a.alive and a.team==Team.BLUE for a in self.actors)
         if not red_alive:self.winner=Team.BLUE
-        elif not blue_alive:self.winner=Team.RED
+        elif not blue_alive and not self.combat_cleared:self.winner=Team.RED
         if self.winner is not None:
             self.message("任务完成 · 全部敌人已消灭" if self.winner==Team.RED else "任务失败 · 小队全灭",
                          "ready" if self.winner==Team.RED else "reject")
+
+    def continue_looting(self):
+        if self.winner!=Team.RED:return
+        self.combat_cleared=True;self.winner=None;self.set_paused(True)
+        self.message('威胁清除 · 可以继续搜索和整理携带物品')
 
 
 def create_world() -> World:
