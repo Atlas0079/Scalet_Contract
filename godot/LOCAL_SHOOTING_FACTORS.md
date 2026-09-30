@@ -194,4 +194,4 @@ P=0 时持枪半宽退化为 [45°,45°]，瞄准权限也会关闭；G=0 时冲
 
 依据文件：simulation/combat.gd、simulation/ability_rules.gd、simulation/skills.gd、simulation/actor.gd、simulation/world.gd；presentation/tactical/tactical_actor.gd、tactical_gait.gd、tactical_study.gd、tactical_fire_fx.gd；data/weapons.json、ammunition.json、attachments.json、characters.json、skills.json、units.json、presentation.json、tactical_study.json、attribute_sources.json。
 
-本地采样：tests/audit_shooting_factors.gd；输出 ../.art-preview-local/shooting-factor-snapshot.json。采样未修改生产逻辑，不应把诊断脚本或本文作为要求提交的正式设计文档。
+本地采样：tests/audit_shooting_factors.gd；输出 ../.art-preview-local/shooting-factor-snapshot.json。采样未修改生产逻辑。2026-09-30 按用户要求，诊断源码与本文纳入 main；本文仍属于实现审计，不替代正式设计规范。
