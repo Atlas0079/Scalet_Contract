@@ -1,2 +1,2 @@
 @echo off
-call "%~dp0Start Godot.cmd" res://presentation/cabin/cabin.tscn
+call "%~dp0Start Godot.cmd" --rendering-method forward_plus res://presentation/cabin/cabin.tscn

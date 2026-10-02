@@ -9,7 +9,7 @@ void vertex() {
 void fragment() {
  // Native 4:3 game picture fills the original curved glass; no letterbox.
  vec2 uv = glass_uv;
- vec3 c = vec3(0.003, 0.007, 0.008);
+ vec3 c = vec3(0.0003, 0.0005, 0.0005);
  if (powered && uv.y >= 0.0 && uv.y <= 1.0) {
   c = texture(live_picture, uv).rgb;
 
