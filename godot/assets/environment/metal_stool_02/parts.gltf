@@ -1,0 +1,388 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v5.1.18",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "metal_stool_02",
+      "rotation": [
+        0,
+        0.7071068286895752,
+        0,
+        0.7071068286895752
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "part_61_61_61",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.046665086336880095,
+          0.046665086336880095,
+          0.046665086336880095,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "part_48_58_61",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.0295568344378088,
+          0.042311410620809675,
+          0.046665086336880095,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "part_97_97_97",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.11953842798834562,
+          0.11953842798834562,
+          0.11953842798834562,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "part_97_92_76",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.11953842798834562,
+          0.10702310297826761,
+          0.07227185068231748,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "part_143_143_143",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.27467731206038465,
+          0.27467731206038465,
+          0.27467731206038465,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "part_143_135_111",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.27467731206038465,
+          0.24228112246555486,
+          0.1589608350608804,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "part_97_74_50",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.11953842798834562,
+          0.06847816984440017,
+          0.03189603307301153,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Cylinder.009",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 4,
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 5,
+          "material": 1
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 6,
+          "material": 2
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 7,
+          "material": 3
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 8,
+          "material": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 9,
+          "material": 5
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 10,
+          "material": 6
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 4490,
+      "max": [
+        0.23518557846546173,
+        0.458111435174942,
+        0.22406147420406342
+      ],
+      "min": [
+        -0.23790471255779266,
+        -1.1295080184936523e-05,
+        -0.22403834760189056
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 4490,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 4490,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 19596,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5125,
+      "count": 11034,
+      "type": "SCALAR",
+      "min": [
+        0
+      ],
+      "max": [
+        4489
+      ]
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5125,
+      "count": 3072,
+      "type": "SCALAR",
+      "min": [
+        2298
+      ],
+      "max": [
+        2977
+      ]
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5125,
+      "count": 1140,
+      "type": "SCALAR",
+      "min": [
+        2978
+      ],
+      "max": [
+        3880
+      ]
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5125,
+      "count": 336,
+      "type": "SCALAR",
+      "min": [
+        3043
+      ],
+      "max": [
+        3107
+      ]
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5125,
+      "count": 936,
+      "type": "SCALAR",
+      "min": [
+        3108
+      ],
+      "max": [
+        3792
+      ]
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5125,
+      "count": 390,
+      "type": "SCALAR",
+      "min": [
+        3238
+      ],
+      "max": [
+        3710
+      ]
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5125,
+      "count": 2688,
+      "type": "SCALAR",
+      "min": [
+        3881
+      ],
+      "max": [
+        4468
+      ]
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 53880,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 53880,
+      "byteOffset": 53880,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 35920,
+      "byteOffset": 107760,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 39192,
+      "byteOffset": 143680,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 44136,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 44136,
+      "byteLength": 12288,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 56424,
+      "byteLength": 4560,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 60984,
+      "byteLength": 1344,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 62328,
+      "byteLength": 3744,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 66072,
+      "byteLength": 1560,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 67632,
+      "byteLength": 10752,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 182872,
+      "uri": "metal_stool_02.bin"
+    },
+    {
+      "uri": "parts.bin",
+      "byteLength": 78384
+    }
+  ]
+}

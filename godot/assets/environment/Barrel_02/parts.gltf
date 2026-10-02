@@ -1,0 +1,218 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v1.6.16",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "Barrel_02"
+    }
+  ],
+  "materials": [
+    {
+      "name": "Barrel_02_paint",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.05780543019106723,
+          0.1946178304415758,
+          0.31854677812509186,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "Barrel_02_dark",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.043735029256973465,
+          0.06480326669290577,
+          0.07227185068231748,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "Barrel_02_metal",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.35153259950043936,
+          0.38132601143253014,
+          0.3467040563550296,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 4,
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 5,
+          "material": 1
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 6,
+          "material": 2
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 1916,
+      "max": [
+        0.2440878003835678,
+        0.8846373558044434,
+        0.2423081248998642
+      ],
+      "min": [
+        -0.24408777058124542,
+        0.004637363366782665,
+        -0.24230831861495972
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 1916,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 1916,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 8064,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5125,
+      "count": 4632,
+      "type": "SCALAR",
+      "min": [
+        1
+      ],
+      "max": [
+        1862
+      ]
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5125,
+      "count": 2637,
+      "type": "SCALAR",
+      "min": [
+        0
+      ],
+      "max": [
+        1915
+      ]
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5125,
+      "count": 795,
+      "type": "SCALAR",
+      "min": [
+        14
+      ],
+      "max": [
+        1016
+      ]
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 22992,
+      "byteOffset": 0
+    },
+    {
+      "buffer": 0,
+      "byteLength": 22992,
+      "byteOffset": 22992
+    },
+    {
+      "buffer": 0,
+      "byteLength": 15328,
+      "byteOffset": 45984
+    },
+    {
+      "buffer": 0,
+      "byteLength": 16128,
+      "byteOffset": 61312
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 18528,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 18528,
+      "byteLength": 10548,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 29076,
+      "byteLength": 3180,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 77440,
+      "uri": "Barrel_02.bin"
+    },
+    {
+      "uri": "parts.bin",
+      "byteLength": 32256
+    }
+  ]
+}

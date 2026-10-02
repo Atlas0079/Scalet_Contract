@@ -1,0 +1,367 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v3.6.27",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "power_box_01_door",
+      "rotation": [
+        0,
+        -0.8152777552604675,
+        0,
+        0.5790701508522034
+      ],
+      "translation": [
+        -0.1638297140598297,
+        4.995614290237427e-06,
+        0.04318104311823845
+      ]
+    },
+    {
+      "mesh": 1,
+      "name": "power_box_01_box"
+    }
+  ],
+  "materials": [
+    {
+      "name": "power_box_01_paint",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.386429433787049,
+          0.4178850708481375,
+          0.39157247774972326,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "power_box_01_dark",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.08650046203654976,
+          0.10461648409110419,
+          0.09758734714186246,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "power_box_01_metal",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.5271151257058131,
+          0.5394794890121072,
+          0.467783796112159,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "power_box_01_red",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.4232676699860717,
+          0.07421356838014963,
+          0.04817182422688942,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "power_box_01_blue",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.14126329114027164,
+          0.20863687014525575,
+          0.2581828529215958,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "power_box_01_teal",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.12213877222960187,
+          0.2581828529215958,
+          0.22696587351009836,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Plane",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 8,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Cube.002",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5,
+            "TEXCOORD_0": 6
+          },
+          "indices": 9,
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5,
+            "TEXCOORD_0": 6
+          },
+          "indices": 10,
+          "material": 1
+        },
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5,
+            "TEXCOORD_0": 6
+          },
+          "indices": 11,
+          "material": 3
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 1256,
+      "max": [
+        0.32854655385017395,
+        0.2415962517261505,
+        0.016477327793836594
+      ],
+      "min": [
+        -0.0033343881368637085,
+        -0.24546650052070618,
+        -0.0032583624124526978
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 1256,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 1256,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 4248,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 19196,
+      "max": [
+        0.1750074177980423,
+        0.251571387052536,
+        0.04702533781528473
+      ],
+      "min": [
+        -0.17049908638000488,
+        -0.251571387052536,
+        -0.04748108983039856
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 19196,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 19196,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5123,
+      "count": 59568,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5125,
+      "count": 4248,
+      "type": "SCALAR",
+      "min": [
+        0
+      ],
+      "max": [
+        1255
+      ]
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5125,
+      "count": 56208,
+      "type": "SCALAR",
+      "min": [
+        0
+      ],
+      "max": [
+        18417
+      ]
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5125,
+      "count": 792,
+      "type": "SCALAR",
+      "min": [
+        741
+      ],
+      "max": [
+        968
+      ]
+    },
+    {
+      "bufferView": 11,
+      "componentType": 5125,
+      "count": 2568,
+      "type": "SCALAR",
+      "min": [
+        18418
+      ],
+      "max": [
+        19195
+      ]
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 15072,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 15072,
+      "byteOffset": 15072,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 10048,
+      "byteOffset": 30144,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 8496,
+      "byteOffset": 40192,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 230352,
+      "byteOffset": 48688,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 230352,
+      "byteOffset": 279040,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 153568,
+      "byteOffset": 509392,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 119136,
+      "byteOffset": 662960,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 16992,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 16992,
+      "byteLength": 224832,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 241824,
+      "byteLength": 3168,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 244992,
+      "byteLength": 10272,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 782096,
+      "uri": "power_box_01.bin"
+    },
+    {
+      "uri": "parts.bin",
+      "byteLength": 255264
+    }
+  ]
+}

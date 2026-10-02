@@ -1,0 +1,168 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v4.0.44",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "painted_wooden_table"
+    }
+  ],
+  "materials": [
+    {
+      "name": "painted_wooden_table_paint",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.1301364766903643,
+          0.20507873639031693,
+          0.238397573812271,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "painted_wooden_table_dark",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.06480326669290577,
+          0.07618538148130785,
+          0.07618538148130785,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "painted_wooden_table_metal",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.4019777798321958,
+          0.38132601143253014,
+          0.30946892281750854,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "table.008",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 4,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 686,
+      "max": [
+        1.20228111743927,
+        0.9581443071365356,
+        0.565796434879303
+      ],
+      "min": [
+        -1.2033226490020752,
+        -0.0004928112030029297,
+        -0.5711875557899475
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 686,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 686,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 1800,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5125,
+      "count": 1800,
+      "type": "SCALAR",
+      "min": [
+        0
+      ],
+      "max": [
+        685
+      ]
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 8232,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 8232,
+      "byteOffset": 8232,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 5488,
+      "byteOffset": 16464,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 3600,
+      "byteOffset": 21952,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 7200,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 25552,
+      "uri": "painted_wooden_table.bin"
+    },
+    {
+      "uri": "parts.bin",
+      "byteLength": 7200
+    }
+  ]
+}

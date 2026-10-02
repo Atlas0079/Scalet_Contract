@@ -1,0 +1,168 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v3.6.27",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "pipe_wrench"
+    }
+  ],
+  "materials": [
+    {
+      "name": "pipe_wrench_paint",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.39157247774972326,
+          0.0953074666309647,
+          0.06124605423161761,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "pipe_wrench_dark",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.0595112381629812,
+          0.06662593864377289,
+          0.05612849004960009,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "pipe_wrench_metal",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.3762621229909065,
+          0.38132601143253014,
+          0.33716361504833037,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Cube.003",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 4,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 6884,
+      "max": [
+        0.022349070757627487,
+        0.2035766839981079,
+        0.017172450199723244
+      ],
+      "min": [
+        -0.06163029745221138,
+        -0.20108850300312042,
+        -0.01717243902385235
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 6884,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 6884,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 32238,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5125,
+      "count": 32238,
+      "type": "SCALAR",
+      "min": [
+        0
+      ],
+      "max": [
+        6883
+      ]
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 82608,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 82608,
+      "byteOffset": 82608,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 55072,
+      "byteOffset": 165216,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 64476,
+      "byteOffset": 220288,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 128952,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 284764,
+      "uri": "pipe_wrench.bin"
+    },
+    {
+      "uri": "parts.bin",
+      "byteLength": 128952
+    }
+  ]
+}

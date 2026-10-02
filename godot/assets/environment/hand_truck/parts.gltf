@@ -1,0 +1,382 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v5.1.18",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "hand_truck"
+    }
+  ],
+  "materials": [
+    {
+      "name": "part_143_74_74",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.27467731206038465,
+          0.06847816984440017,
+          0.06847816984440017,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "part_143_91_74",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.27467731206038465,
+          0.10461648409110419,
+          0.06847816984440017,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "part_97_62_50",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.11953842798834562,
+          0.04817182422688942,
+          0.03189603307301153,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "part_143_143_143",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.27467731206038465,
+          0.27467731206038465,
+          0.27467731206038465,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "part_97_81_76",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.11953842798834562,
+          0.0822827071298148,
+          0.07227185068231748,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "part_97_97_97",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.11953842798834562,
+          0.11953842798834562,
+          0.11953842798834562,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "part_97_86_76",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.11953842798834562,
+          0.09305896284668745,
+          0.07227185068231748,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "hand_truck",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 4,
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 5,
+          "material": 1
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 6,
+          "material": 2
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 7,
+          "material": 3
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 8,
+          "material": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 9,
+          "material": 5
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 10,
+          "material": 6
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 14262,
+      "max": [
+        0.29662641882896423,
+        1.4024649858474731,
+        0.5968921184539795
+      ],
+      "min": [
+        -0.2966264486312866,
+        -4.776567220687866e-05,
+        -0.09563499689102173
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 14262,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 14262,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 39660,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5125,
+      "count": 4128,
+      "type": "SCALAR",
+      "min": [
+        0
+      ],
+      "max": [
+        14245
+      ]
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5125,
+      "count": 7086,
+      "type": "SCALAR",
+      "min": [
+        2481
+      ],
+      "max": [
+        14253
+      ]
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5125,
+      "count": 1350,
+      "type": "SCALAR",
+      "min": [
+        6238
+      ],
+      "max": [
+        14261
+      ]
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5125,
+      "count": 3864,
+      "type": "SCALAR",
+      "min": [
+        7124
+      ],
+      "max": [
+        8723
+      ]
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5125,
+      "count": 1728,
+      "type": "SCALAR",
+      "min": [
+        8724
+      ],
+      "max": [
+        14215
+      ]
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5125,
+      "count": 10752,
+      "type": "SCALAR",
+      "min": [
+        9334
+      ],
+      "max": [
+        14219
+      ]
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5125,
+      "count": 10752,
+      "type": "SCALAR",
+      "min": [
+        11774
+      ],
+      "max": [
+        14217
+      ]
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 171144,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 171144,
+      "byteOffset": 171144,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 114096,
+      "byteOffset": 342288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 79320,
+      "byteOffset": 456384,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 16512,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 16512,
+      "byteLength": 28344,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 44856,
+      "byteLength": 5400,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 50256,
+      "byteLength": 15456,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 65712,
+      "byteLength": 6912,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 72624,
+      "byteLength": 43008,
+      "target": 34963
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 115632,
+      "byteLength": 43008,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 535704,
+      "uri": "hand_truck.bin"
+    },
+    {
+      "uri": "parts.bin",
+      "byteLength": 158640
+    }
+  ]
+}
