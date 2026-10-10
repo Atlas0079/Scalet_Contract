@@ -1,0 +1,20 @@
+<header class="md-header wiki-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <label class="md-header__button md-icon" for="__drawer" aria-label="打开导航">
+      {% include ".icons/material/menu.svg" %}
+    </label>
+    <a class="wiki-brand" href="{{ nav.homepage.url | url }}" aria-label="{{ config.site_name }}首页">
+      <span class="wiki-brand-symbol" aria-hidden="true">铁</span>
+      <span class="wiki-brand-name">{{ config.site_name }}<span class="wiki-brand-subtitle">游戏设定百科</span></span>
+    </a>
+    <div class="md-header__title" data-md-component="header-title" hidden>
+      <span data-md-component="header-topic">{{ page.title }}</span>
+    </div>
+    {% if "material/search" in config.plugins %}
+      <label class="md-header__button md-icon" for="__search" aria-label="搜索百科">
+        {% include ".icons/material/magnify.svg" %}
+      </label>
+      {% include "partials/search.html" %}
+    {% endif %}
+  </nav>
+</header>

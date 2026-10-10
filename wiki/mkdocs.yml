@@ -1,0 +1,149 @@
+site_name: 铁眼
+site_description: 《铁眼》的玩法、系统与世界观设定百科
+use_directory_urls: true
+dev_addr: 127.0.0.1:8765
+theme:
+  name: material
+  language: zh
+  font: false
+  icon:
+    logo: material/book-open-page-variant
+  palette:
+    scheme: default
+    primary: custom
+    accent: blue
+  features:
+  - navigation.sections
+  - navigation.top
+  - search.highlight
+  - search.suggest
+  custom_dir: overrides
+hooks:
+- article_layout.py
+- search_fix.py
+plugins:
+- search:
+    lang: zh
+    jieba_dict_user: search-dictionary.txt
+markdown_extensions:
+- attr_list
+- tables
+- toc:
+    permalink: true
+extra_css:
+- stylesheets/wiki.css
+nav:
+- 首页: index.md
+- 游戏与系统:
+  - 铁眼: game/overview.md
+  - 撤离循环: game/extraction.md
+  - SIA: game/sia.md
+  - 角色与身体:
+    - 三类作战身体: technology/bodies.md
+    - 人类: technology/humans.md
+    - 机器人: technology/robots.md
+    - 仿生人: technology/androids.md
+- 世界观:
+  - 故事概览: overview.md
+  - 星球与居民:
+    - 卡吕贝斯: places/calybes.md
+    - 阿利贝: places/alybe.md
+    - 居民与身份: society/residents.md
+  - 人物:
+    - 深红: people/scarlet.md
+    - 尤里卡: people/eureka.md
+    - 观察员: people/observer.md
+    - 马雷克·维克: people/marek-vik.md
+    - 埃利亚斯·沃斯: people/elias-voss.md
+    - 塞拉·韦恩: people/sera-vane.md
+    - 谢弥: people/xie-mi.md
+    - 阮铎: people/ruan-duo.md
+    - 柳岑: people/liu-cen.md
+    - 天地人: people/tiandiren.md
+  - 公司与佣兵:
+    - 公司与机构: organizations/index.md
+    - 利维坦星际公司: organizations/leviathan.md
+    - 瓦尔哈拉重工: organizations/valhalla.md
+    - 赫淮斯托斯星际公司: organizations/hephaestus.md
+    - 天工集团: organizations/tiangong.md
+    - 奥贡集团: organizations/ogun.md
+    - 戈仑生命联合: organizations/golem.md
+    - 阿什温生命联合: organizations/ashvin.md
+    - 新地球联合学院: organizations/new-earth-academy.md
+    - 佣兵组织: organizations/mercenaries.md
+    - 中继防务: organizations/relay-defense.md
+    - 非真空谍报: organizations/non-vacuum-intelligence.md
+    - 加拉太人: organizations/galatians.md
+  - 灾难与派系:
+    - 大停电: events/blackout.md
+    - 关键事件: events/timeline.md
+    - 幸存者团体: factions/survivors.md
+    - 蓝袖军: factions/blue-sleeves.md
+    - 阿利贝唯一民主党: factions/sole-democratic-party.md
+    - 隐名者: factions/the-untold.md
+    - 黑栈: factions/black-stack.md
+  - 资源与技术:
+    - 钶特: technology/cot.md
+- 创作草案:
+  - 共同治理与法律（草案）: drafts/governance.md
+  - 观察员视图与接入（方案）: drafts/control.md
+  - 待讨论事项: drafts/questions.md
+- 编辑说明:
+  - 写作规范: writing-guide.md
+  - 术语对照表: terminology.md
+- English:
+  - Home: en/index.md
+  - Game and Systems:
+    - Iron Eye: en/game/overview.md
+    - Extraction Cycle: en/game/extraction.md
+    - SIA: en/game/sia.md
+    - Bodies and Roles:
+      - The Three Combat Body Types: en/technology/bodies.md
+      - Humans: en/technology/humans.md
+      - Robots: en/technology/robots.md
+      - Androids: en/technology/androids.md
+  - World:
+    - Story Overview: en/overview.md
+    - Planet and Residents:
+      - Calybes: en/places/calybes.md
+      - Alybe: en/places/alybe.md
+      - Residents and Identity: en/society/residents.md
+    - People:
+      - Scarlet: en/people/scarlet.md
+      - Eureka: en/people/eureka.md
+      - Observer: en/people/observer.md
+      - Marek Vik: en/people/marek-vik.md
+      - Elias Voss: en/people/elias-voss.md
+      - Sera Vane: en/people/sera-vane.md
+      - Xie Mi: en/people/xie-mi.md
+      - Ruan Duo: en/people/ruan-duo.md
+      - Liu Cen: en/people/liu-cen.md
+      - Tiandiren: en/people/tiandiren.md
+    - Companies and Mercenaries:
+      - Companies and Institutions: en/organizations/index.md
+      - Leviathan Interstellar: en/organizations/leviathan.md
+      - Valhalla Heavy Industries: en/organizations/valhalla.md
+      - Hephaestus Interstellar: en/organizations/hephaestus.md
+      - Tiangong Group: en/organizations/tiangong.md
+      - Ogun Group: en/organizations/ogun.md
+      - Golem Life Consortium: en/organizations/golem.md
+      - Ashvin Life Consortium: en/organizations/ashvin.md
+      - Neo Earth Joint Academy: en/organizations/new-earth-academy.md
+      - Mercenaries: en/organizations/mercenaries.md
+      - Relay Defense: en/organizations/relay-defense.md
+      - Non-Vacuum Intelligence: en/organizations/non-vacuum-intelligence.md
+      - Galatians: en/organizations/galatians.md
+    - Disaster and Factions:
+      - the Blackout: en/events/blackout.md
+      - Key Events: en/events/timeline.md
+      - Survivor Groups: en/factions/survivors.md
+      - the Blue Sleeves: en/factions/blue-sleeves.md
+      - the Alybe Sole Democratic Party: en/factions/sole-democratic-party.md
+      - the Untold: en/factions/the-untold.md
+      - the Black Stack: en/factions/black-stack.md
+    - Resource and Technology:
+      - Cot: en/technology/cot.md
+  - Drafts:
+    - Common Governance and Law (Draft): en/drafts/governance.md
+    - Observer View and Access (Proposal): en/drafts/control.md
+    - Open Questions: en/drafts/questions.md
