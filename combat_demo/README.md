@@ -1,6 +1,6 @@
-# Scarlet Contract
+# 铁眼
 
-当前运行入口是 Godot 角色与射击测试场。根目录 `Start Demo.cmd`、`Start Godot.cmd` 和 `Open Tactical Preview.cmd` 均可进入测试场；`Open Godot Editor.cmd` 用于打开工程。
+当前运行入口是 Godot 舱室主场景。根目录 `Start Demo.cmd`、`Start Godot.cmd` 默认进入舱室；`Open CRT Cabin.command` / `.cmd` 直接打开同一场景，使用 Forward+。`Open Tactical Preview.cmd` 保留角色与射击测试场景的独立开发入口；`Open Godot Editor.cmd` 用于打开工程。场景名称与架构职责统一见 [战术玩法与表现设计第 16 节](docs/demo_design.md#16-项目职责与实现边界)。
 
 
 本目录保留 Python 模拟逻辑，供规则对照与仍适用的底层检查使用。实际游戏开发与运行以 `godot/` 为准；当前尚未完成按最新美学搭建的正式战场。
@@ -11,7 +11,7 @@
 
 ## 地下维护站美术小样
 
-根目录 `Open Maintenance Preview.command`（macOS）或 `Open Maintenance Preview.cmd`（Windows）打开独立场景。macOS 支持 `GODOT_BIN`，或桌面、Applications 中的 Godot。原有启动器仍进入角色射击测试场。
+根目录 `Open Maintenance Preview.command`（macOS）或 `Open Maintenance Preview.cmd`（Windows）打开独立场景。macOS 支持 `GODOT_BIN`，或桌面、Applications 中的 Godot。独立维护站和射击测试场以 Compatibility 运行；默认游戏入口进入舱室。
 
 WASD 移动，鼠标朝向，滚轮缩放，E 查看附近现场说明，O 开关附近门；V 开关 CRT，F 切换完全无滤镜原图并恢复之前状态，N 开关描边对照，方括号调整 CRT 强度，空格同时暂停角色、噪声和滚动干扰。CRT 包含信号采样、扫描线、RGB 栅格与通道分离、曲率、暗角、低强度噪声和滚动干扰；没有额外像素化层。
 

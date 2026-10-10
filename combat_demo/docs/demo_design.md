@@ -1,6 +1,6 @@
 # Scarlet Contract：战术玩法与表现设计
 
-更新日期：2026-09-30。本文规定战术指挥的功能验证关卡、命令与信息契约。当前运行入口为 Godot 角色与射击测试场；本文件中的完整关卡与 UI 是设计范围，不表示当前入口已提供这些内容。
+更新日期：2026-10-10。本文规定战术指挥的功能验证关卡、命令与信息契约，并在第 16 节统一场景名称和架构职责。当前运行入口为舱室主场景；本文件中的完整关卡与 UI 是设计范围，不表示当前入口已提供这些内容。
 
 场景、角色、滤镜和 UI 以 [美学方向](../../docs/art-direction.md) 为唯一依据。角色、能力和射击以 [角色架构](../../godot/LOCAL_CHARACTER_ARCHITECTURE.md)、[射击机制](../../godot/LOCAL_SHOOTING_FACTORS.md)及[配置说明](../../godot/LOCAL_CONFIGURATION.md)为准。指挥规则集中于 [指挥与 AI](command_and_ai.md)，物资交互集中于 [现场转移规则](interaction_and_loot.md)。
 
@@ -824,7 +824,37 @@ UI 采用两千年代对于未来科技的想象，与严肃工业科幻气氛�
 
 ## 16. 项目职责与实现边界
 
-运行与开发工程为 Godot，当前入口进入角色与射击测试场。具体实现范围见 [配置说明](../../godot/LOCAL_CONFIGURATION.md)。
+运行与开发工程为 `godot/`。默认入口为舱室主场景 `presentation/cabin/cabin.tscn`，使用 Forward+。`Start Demo.cmd`、`Start Godot.cmd` 运行默认入口，`Open CRT Cabin.command` / `.cmd` 直接打开同一场景。独立维护站和射击测试场保留开发预览入口，以 Compatibility 运行。
+
+### 场景名称与层级
+
+以下名称用于设计文档、实现说明和后续讨论。场景名称描述玩家可见空间或内容；实体设备、渲染纹理与独立预览工具分别列明。
+
+| 名称 | 层级与职责 | 当前实现 |
+| --- | --- | --- |
+| 舱室主场景 | 外层空间；组织舱室环境、坐姿观察、设备选择、聚焦与输入分发。 | `presentation/cabin/cabin.tscn` / `cabin.gd` |
+| CRT 内部场景 | 左、中 CRT 承载的可操作场景类别；拥有内部相机、角色、场景交互和画面输出。 | 现有维护站与射击测试场通过内嵌适配脚本接入。 |
+| 地下维护站预览场景 | 当前默认的 CRT 内部场景；验证环境、美术、门和现场说明交互。 | `presentation/maintenance/maintenance.tscn`；内嵌适配为 `presentation/cabin/embedded_maintenance.gd`。 |
+| 角色与射击测试场景 | 可切换的 CRT 内部场景；验证角色、能力、动作与射击，保留独立开发入口。 | `presentation/tactical/tactical.tscn`；内嵌适配为 `presentation/cabin/embedded_range.gd`。 |
+| AEON 终端界面 | AEON 屏幕里的黑绿内容；后续承载终端信息与命令，与 CRT 内部场景独立。 | 当前为静态图像，经 `terminal_screen.gdshader` 显示；尚无独立界面场景。 |
+| AEON 实体设备 | 舱室中的终端机壳、玻璃、仪表、旋钮、电源与设备照明。 | `presentation/cabin/aeon_terminal.gd` 与对应模型。 |
+
+左、中 CRT 当前共享同一个内部场景实例和合成画面，默认显示地下维护站预览场景，可手动切换角色与射击测试场景。AEON 终端界面使用独立内容。两台 CRT 的正式用途与后续独立画面需求待确认；正式战场尚未接入，不将现有预览场景视为完整游戏关卡。
+
+### 架构职责与现有调用关系
+
+- **舱室层**：`cabin.gd` 组织设备、聚焦、输入分发和当前共享 CRT 画面的切换与合成；`cabin_shell.gd` 构建外围环境。舱室相机始终属于外层空间。
+- **设备层**：`screen_device.gd` 管理显示器玻璃命中、电源与照明；`aeon_terminal.gd` 管理 AEON 实体设备；`desk_devices.gd` 管理手机、时钟和玩具的物理操作。设备将操作传给内容或既有状态接口。
+- **内容层**：维护站与射击测试场处理各自内部相机、角色、交互及画面；`embedded_maintenance.gd` / `embedded_range.gd` 复用原场景脚本，适配舱室内的画面比例和输入。AEON 终端界面后续处理终端信息与命令，具体内容结构待确认。
+- **模拟层**：`simulation/` 管理角色、计划、战斗、物资和世界状态，向表现与界面提供状态和结果。现有预览只接入各自需要的功能；舱室日历、剧情通话、睡眠推进和正式任务链路待接入。
+
+CRT 渲染链路为：内部场景及文字 → CRT 合成 → 实体玻璃 → 舱室相机 → 应用窗口。AEON 的内容通过独立黑绿显示材质进入其实体玻璃。聚焦 CRT 后输入经玻璃坐标映射进入当前内部场景；聚焦 AEON 后输入交给实体设备控制，终端界面命令链路待接入。现有共享画面合成仍由 `cabin.gd` 负责，后续调整优先复用这些脚本与接口。
+
+### 当前架构缺口
+
+AEON 模型已保留两根独立仪表指针和四个下方旋钮，舱室已调用 `handle_control_input()`；当前 `aeon_terminal.gd` 缺少该处理方法、仪表/旋钮控制和内容更新接口，照明仍继承基础显示器的固定淡蓝色。聚焦 AEON 后的输入存在调用缺失方法的问题。控制实现保存在本地 `.art-preview-local/aeon-controls/aeon_terminal_work.gd`，其验证记录只描述当时运行版本。恢复并验证当前运行链路列为待修复，对应代码与资源保留。
+
+两块仪表的读数范围设计为 0–6，下方四个旋钮设计为 0–1；按屏幕亮像素比例更新绿色照明属于已确认设备要求。旋钮控制对象、仪表对应的世界数据、终端命令和正式界面布局待确认。设计要求与当前实现状态分别记录，具体实现范围见 [配置说明](../../godot/LOCAL_CONFIGURATION.md)。
 
 | 模块 | 职责 |
 |---|---|
@@ -835,6 +865,8 @@ UI 采用两千年代对于未来科技的想象，与严肃工业科幻气氛�
 | simulation/loot.gd | 搜索、预约、携带和现场转移 |
 | simulation/ability_rules.gd 与 skills.gd | 能力来源、统一快照、技能与经验 |
 | simulation/combat.gd | 弹丸、射击状态、后坐与伤害结算 |
+| presentation/cabin/ | 舱室主场景、实体设备、焦点与输入路由、CRT 内嵌适配和共享画面合成 |
+| presentation/maintenance/ | 地下维护站预览场景、场景/文字输出与美术处理 |
 | presentation/tactical/ | 角色、动作、射击效果和测试场界面 |
 | godot/tests/ | 适用的模拟与测试场验证源码 |
 

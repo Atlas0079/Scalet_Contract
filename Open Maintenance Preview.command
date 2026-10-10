@@ -9,4 +9,4 @@ if [[ ! -x "$engine" ]]; then
   print '请设置 GODOT_BIN，指向 Godot 4.7 可执行文件。'
   exit 1
 fi
-exec "$engine" --path godot res://presentation/maintenance/maintenance.tscn "$@"
+exec "$engine" --path godot --rendering-method gl_compatibility res://presentation/maintenance/maintenance.tscn "$@"

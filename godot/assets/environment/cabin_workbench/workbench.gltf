@@ -1,0 +1,137 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "Scalet Contract original folded-steel workbench"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "CabinWorkbench"
+    }
+  ],
+  "meshes": [
+    {
+      "name": "CabinWorkbench",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2,
+            "COLOR_0": 3
+          },
+          "indices": 4,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "Sheet",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.2,
+          0.2,
+          0.2,
+          1
+        ],
+        "metallicFactor": 0.4,
+        "roughnessFactor": 0.6
+      }
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "workbench.bin",
+      "byteLength": 235104
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 39192
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 39192,
+      "byteLength": 39192
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 78384,
+      "byteLength": 26128
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 104512,
+      "byteLength": 52256
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 156768,
+      "byteLength": 78336
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 3266,
+      "type": "VEC3",
+      "min": [
+        -1.05,
+        0.6903526,
+        -0.6595
+      ],
+      "max": [
+        1.05,
+        0.7473526,
+        0.6595
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 3266,
+      "type": "VEC3",
+      "min": [
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "max": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 3266,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 3266,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5125,
+      "count": 19584,
+      "type": "SCALAR"
+    }
+  ]
+}

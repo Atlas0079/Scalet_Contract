@@ -1,6 +1,6 @@
 # Godot 运行说明与迁移验证
 
-当前入口进入角色与射击测试场，运行状态以 [配置说明](LOCAL_CONFIGURATION.md)为准。场景、角色、滤镜与 UI 的设计统一见 [美学方向](../docs/art-direction.md)。下面的迁移测量对应其注明日期的实际运行，不表示当前正式战场或新美学已经完成。
+当前入口进入舱室主场景，角色与射击测试场景保留开发入口；运行状态以 [配置说明](LOCAL_CONFIGURATION.md)为准。场景、角色、滤镜与 UI 的设计统一见 [美学方向](../docs/art-direction.md)。下面的迁移测量对应其注明日期的实际运行，不表示当前正式战场或新美学已经完成。
 
 验证日期：2026-09-28。使用本机 Godot `4.7.1.stable.official.a13da4feb`。
 
@@ -13,7 +13,7 @@
 
 ## 迁移范围
 
-运行时使用 GDScript。当前主场景为 `presentation/tactical/tactical.tscn`，以角色、动作、能力与射击验证为中心。
+运行时使用 GDScript。当前主场景为 `presentation/cabin/cabin.tscn`，组织舱室设备与内部画面。`presentation/tactical/tactical.tscn` 保留角色、动作、能力与射击验证，作为 CRT 内部场景及独立开发预览。
 
 - 模拟层位于 `simulation/`，对应原来的世界、地图、角色、移动、战斗、感知、命令、房间任务及物资模块。
 - `data/greyport.json` 存放任务与关卡数据，`data/catalog.json` 存放基础物品及物资定义。武器、弹药、配件、角色、身体、表现、单位、技能与属性来源分别存放在 `weapons.json`、`ammunition.json`、`attachments.json`、`characters.json`、`bodies.json`、`presentation.json`、`units.json`、`skills.json` 与 `attribute_sources.json`，由 `simulation/data.gd` 加载；武器对应的物品与物资条目、弹药物资条目由所属定义派生。这些文件是原生运行数据，不是运行时转换层。
@@ -34,7 +34,7 @@
 
 ## 边界
 
-- 当前入口可验证角色与射击；正式场景和界面仍需按统一美学设计建设。
+- 角色与射击测试场景可从舱室 CRT 切入或通过独立开发入口验证；正式场景和界面仍需按统一美学设计建设。
 - 使用 Godot 原生随机数发生器。同一配置在 Godot 内可重现，但不保证逐发随机结果与 Python 版本一致。
 - 已准备 Windows 导出配置并验证 PCK。当前机器未发现对应导出模板，因此没有声称生成独立 Windows 游戏 EXE；现有启动器使用用户已安装的 Godot。安装对应模板后可从编辑器导出。
 - 尚未做长期游玩平衡测试；未新增撤离、仓库、招募等后续系统。

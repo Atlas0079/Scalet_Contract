@@ -2,6 +2,8 @@ extends Node3D
 ## Physical controls. World time is supplied externally; this study owns no clock.
 signal sleep_requested
 const FONT = preload("res://assets/fonts/fusion-pixel-12px-monospaced-zh_hans.otf")
+const PHONE = preload("res://presentation/cabin/field_phone.gd")
+const TOY = preload("res://presentation/cabin/desk_toy.gd")
 const CLOCK_MODEL = preload("res://assets/environment/alarm_clock_1980s/alarm_clock.glb")
 var clock_text: Label
 var alarm_text: Label
@@ -14,13 +16,31 @@ var alarm_audio: AudioStreamPlayer
 var sleep_button: Node3D
 var models: Dictionary = {}
 var display_view: SubViewport
+var phone: Node3D
 
 func _ready():
  build_clock()
+ build_desktop_props()
  alarm_audio = AudioStreamPlayer.new()
  alarm_audio.stream = preload("res://assets/ready.wav")
  add_child(alarm_audio)
  refresh()
+
+func build_desktop_props():
+ phone = PHONE.new();phone.position = Vector3(-0.32,0.7473526,0.52);phone.rotation.y=deg_to_rad(-11)
+ add_child(phone)
+ models["phone"] = {"node":phone,"point":Vector3(0,0.012,0),"label":"手机","focusable":true}
+ var toy := TOY.new()
+ toy.position = Vector3(0.24,0.7473526,0.38)
+ add_child(toy)
+ models["duck"] = {"node":toy,"point":Vector3(0,0.045,0),"label":"弹簧橡皮鸭","focusable":false}
+
+func label_for(kind: String) -> String:
+ return models[kind].get("label","闹钟")
+func focusable(kind: String) -> bool:
+ return models[kind].get("focusable",true)
+func poke(kind: String):
+ if not focusable(kind):models[kind].node.poke()
 
 func place_model(scene: PackedScene, at: Vector3, width: float, kind: String) -> Node3D:
  var model := scene.instantiate() as Node3D
@@ -85,21 +105,32 @@ func mesh_hit(camera: Camera3D, point: Vector2, node: MeshInstance3D) -> Variant
  var inverse := node.global_transform.affine_inverse()
  var origin := inverse*camera.project_ray_origin(point)
  var direction := (inverse.basis*camera.project_ray_normal(point)).normalized()
- if not node.get_aabb().intersects_segment(origin,origin+direction*100): return null
+ var end := origin+inverse.basis*camera.project_ray_normal(point)*camera.far
+ if not node.get_aabb().intersects_segment(origin,end): return null
+ # Normalize authored units so tiny source triangles exceed the ray epsilon.
+ var centre := node.get_aabb().get_center()
+ var ray_scale := maxf(node.get_aabb().size.length(),0.0001)
+ origin = (origin-centre)/ray_scale
  var nearest: Variant = null
  var distance := INF
  for surface in range(node.mesh.get_surface_count()):
   var arrays := node.mesh.surface_get_arrays(surface)
-  var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-  var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+  var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX].duplicate()
+  for i in range(vertices.size()):vertices[i] = (vertices[i]-centre)/ray_scale
+  var indices := PackedInt32Array()
+  if arrays[Mesh.ARRAY_INDEX]!=null:indices = arrays[Mesh.ARRAY_INDEX]
+  if indices.is_empty():
+   for i in range(vertices.size()):indices.append(i)
   for i in range(0,indices.size(),3):
    var at: Variant = Geometry3D.ray_intersects_triangle(origin,direction,vertices[indices[i]],vertices[indices[i+1]],vertices[indices[i+2]])
    if at != null and origin.distance_squared_to(at) < distance:
     distance = origin.distance_squared_to(at)
-    nearest = node.to_global(at)
+    nearest = node.to_global(at*ray_scale+centre)
  return nearest
 
 func hit(camera: Camera3D, point: Vector2) -> Dictionary:
+ var phone_key: String = phone.contact(self,camera,point)
+ if not phone_key.is_empty():return {"action":"phone","key":phone_key}
  var result := {}
  var distance := INF
  for contact in contacts:
@@ -113,6 +144,7 @@ func body_hit(camera: Camera3D, point: Vector2) -> String:
  var result := ""
  var distance := INF
  for kind in models:
+  if not focusable(kind):continue
   var model: Node3D = models[kind].node
   for node in model.find_children("*","MeshInstance3D",true,false):
    var at: Variant = mesh_hit(camera,point,node)
@@ -122,9 +154,11 @@ func body_hit(camera: Camera3D, point: Vector2) -> String:
  return result
 
 func focus_point(kind: String) -> Vector3:
+ if models[kind].has("point"):return models[kind].node.to_global(models[kind].point)
  return models[kind].node.to_global(models[kind].bounds.get_center())
 
 func activate(contact: Dictionary):
+ if contact.action=="phone":phone.press(contact.key);return
  match contact.action:
   "hour": alarm_minutes = (alarm_minutes+60)%1440
   "minute": alarm_minutes = (alarm_minutes+1)%1440

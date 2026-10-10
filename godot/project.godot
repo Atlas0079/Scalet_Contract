@@ -1,9 +1,9 @@
 config_version=5
 
 [application]
-config/name="Scarlet Contract · 角色与射击测试场"
-run/main_scene="res://presentation/tactical/tactical.tscn"
-config/features=PackedStringArray("4.7", "GL Compatibility")
+config/name="铁眼 · 舱室"
+run/main_scene="res://presentation/cabin/cabin.tscn"
+config/features=PackedStringArray("4.7", "Forward Plus")
 
 [display]
 window/size/viewport_width=2560
@@ -15,7 +15,7 @@ window/stretch/aspect="keep"
 window/subwindows/embed_subwindows=true
 
 [rendering]
-renderer/rendering_method="gl_compatibility"
+renderer/rendering_method="forward_plus"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/default_filters/use_nearest_mipmap_filter=false
 environment/defaults/default_clear_color=Color(0.027,0.067,0.071,1)
