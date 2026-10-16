@@ -226,7 +226,7 @@ static func projectile(origin: Vector3, direction: Vector3, weapon: Dictionary) 
 		"start": Vector2(origin.x, origin.z), "end": Vector2(origin.x, origin.z),
 		"start_height": origin.y, "height": origin.y, "direction_3d": direction,
 		"direction": planar.normalized(), "horizontal_factor": planar.length(), "travelled": 0.0,
-		"range": weapon.definition.range, "speed": SCData.projectile_speed(weapon), "damage_value": weapon.ammunition.damage,
+		"range": weapon.definition.range, "speed": SCData.projectile_speed(weapon), "damage_value": weapon.ammunition.damage, "attack_category":"kinetic", "penetration":weapon.ammunition.penetration,
 		"timer": tracer.fade_seconds, "duration": tracer.fade_seconds,
 		"tracer_length": tracer.length_m, "tracer_brightness": tracer.brightness,
 		"tracer_visible": (int(weapon.shots_fired) - 1) % int(weapon.ammunition.tracer_every_n_shots) == 0,
@@ -309,9 +309,10 @@ static func advance_shot(shot: Dictionary, dt: float, grid, actors: Array, rng: 
 	var best = null
 	var flight_fraction := length / maxf(shot.speed * dt, 0.000001)
 	for a in actors:
-		if not a.alive or a.id == shot.shooter_id: continue
+		if a.id == shot.shooter_id: continue
 		var actor_end: Vector2 = a.previous_position.lerp(a.position, flight_fraction)
-		var t := cylinder_hit_fraction(start, end, h0, h1, a.previous_position, actor_end, a.radius, 0.0, a.height)
+		var body_height: float = grid.entities[a.identity].height() if grid.entities.has(a.identity) else a.height
+		var t := cylinder_hit_fraction(start, end, h0, h1, a.previous_position, actor_end, a.radius, 0.0, body_height)
 		if t >= 0.0 and (t < best_t or not blocked and t <= best_t):
 			best_t = t
 			best = a
@@ -321,13 +322,14 @@ static func advance_shot(shot: Dictionary, dt: float, grid, actors: Array, rng: 
 	shot.age += dt
 	shot.near_misses = []
 	if best != null:
-		var hit: Dictionary = best.resolve_hit(body_region(shot.height, best, rng), shot.damage_value, rng)
+		var hit: Dictionary = best.resolve_hit(body_region(shot.height, best, rng), shot.damage_value, rng, shot.attack_category, shot.penetration)
 		best.hit_flash = 0.12
 		shot.hit_actor_id = best.id
 		shot.hit_part = hit.part_id
 		shot.damage = hit.damage
 		shot.finished = true
 	elif blocked:
+		if wall[1]!=null and grid.entities.has(wall[1].get("id","")): grid.entities[wall[1].id].damage(shot.damage_value)
 		shot.blocked = true
 		shot.finished = true
 	elif shot.travelled >= shot.range - 0.000001:
@@ -373,3 +375,39 @@ static func reticle_bounds(actor, muzzle: Vector3, forward: Vector3, target: Vec
 	var side:=Vector2(-offset.y,offset.x).normalized()
 	return {"valid":true,"center":point,"left":point-side*half_width,"right":point+side*half_width,
 		"axis":side,"height_min":heights.min()-motion,"height_max":heights.max()+motion,"aim":actor.aim_progress}
+
+# Static-target laboratory trajectories use the same grid and collision primitives
+# as actor combat. Renderers consume this result to draw impacts and target paper.
+static func advance_training_shot(shot: Dictionary, dt: float, grid: SCGrid, targets: Array) -> Dictionary:
+	shot.age+=dt
+	if shot.finished:
+		shot.afterglow+=dt
+		return {}
+	var distance := minf(shot.speed*dt,shot.range-shot.travelled)
+	var start: Vector2 = shot.end
+	var end: Vector2 = start+shot.direction*shot.horizontal_factor*distance
+	var h0: float = shot.height
+	var h1: float = h0+shot.direction_3d.y*distance
+	var collision := grid.raycast(start,end,h0,h1,"projectile",true)
+	var best: float = collision[0]
+	var blocked: bool = collision[1]!=null
+	var label: String = collision[1].get("label","地形") if blocked else ""
+	var ground := ground_fraction(h0,h1)
+	if ground>=0 and ground<=best: best=ground; blocked=true; label="地面"
+	var target: Dictionary = {}
+	for entry in targets:
+		var fraction := cylinder_hit_fraction(start,end,h0,h1,entry.position,entry.position,entry.radius,0,entry.height)
+		if fraction>=0 and (fraction<best or not blocked and fraction<=best): best=fraction; blocked=false; target=entry
+	shot.travelled+=distance*best
+	shot.end=start.lerp(end,best)
+	shot.height=lerpf(h0,h1,best)
+	var result := {}
+	if blocked or not target.is_empty():
+		if not target.is_empty(): label=target.label; shot["hit_target_id"]=target.id
+		shot.finished=true
+		shot.blocked=blocked
+		shot["stop_label"]=label+"截停"
+		result={"target":target,"blocked":blocked,"label":label,"position":shot.end,"height":shot.height,"age":maxf(0,dt-distance*best/shot.speed)}
+	if shot.travelled>=shot.range-.00001: shot.finished=true
+	if shot.finished: shot.afterglow+=maxf(0,dt-distance*best/shot.speed)
+	return result

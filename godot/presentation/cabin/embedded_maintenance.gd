@@ -48,7 +48,6 @@ func _process(delta: float):
  if input_active:
   super._process(delta)
  elif is_instance_valid(unit) and post:
-  if not frozen: clock_time += delta
   post.set_shader_parameter("elapsed_time",clock_time)
 
 func refresh_status():

@@ -2,8 +2,8 @@ class_name SCRoomTasks
 extends RefCounted
 
 
-static func room_angle(room: String, c: Vector2i) -> float:
-	var r = SCData.mission.rects[room]
+static func room_angle(grid: SCGrid, room: String, c: Vector2i) -> float:
+	var r = grid.zones[room].rect
 	var delta = Vector2((r[0] + r[2] + 1) / 2.0, (r[1] + r[3] + 1) / 2.0) - SCData.center(c)
 	return delta.angle() if delta.length_squared() > 0 else -PI / 2.0
 
@@ -319,7 +319,7 @@ static func retry(p, id: int) -> String:
 
 
 static func observations(p, room: String) -> Array:
-	var r = SCData.mission.rects[room]
+	var r = p.world.grid.zones[room].rect
 	var seeds = [
 		Vector2i(r[0] + 1, r[1] + 1),
 		Vector2i(r[2] - 1, r[1] + 1),
@@ -543,7 +543,7 @@ static func tick(p, t: Dictionary, dt: float):
 				a,
 				d.entries[a.id],
 				dt,
-				d.entry_angles.get(a.id, room_angle(d.room, d.entries[a.id]))
+				d.entry_angles.get(a.id, room_angle(p.world.grid, d.room, d.entries[a.id]))
 			):
 				t.entered[a.id] = true
 		if t.enter_index < units.size():
@@ -563,7 +563,7 @@ static func tick(p, t: Dictionary, dt: float):
 					a,
 					d.entries[a.id],
 					dt,
-					d.entry_angles.get(a.id, room_angle(d.room, d.entries[a.id]))
+					d.entry_angles.get(a.id, room_angle(p.world.grid, d.room, d.entries[a.id]))
 				)
 				t.enter_index += 1
 				t.released_at = w.time
@@ -585,7 +585,7 @@ static func tick(p, t: Dictionary, dt: float):
 				assigned.append_array(values)
 			points[0] = resolve_slot(p, t, a, points[0], assigned, d.room)
 			done = false
-			if p.drive(a, points[0], dt, room_angle(d.room, points[0]), d.room):
+			if p.drive(a, points[0], dt, room_angle(p.world.grid, d.room, points[0]), d.room):
 				t.observations[a.id] = t.observations.get(a.id, 0.0) + dt
 				if t.observations[a.id] >= 0.4:
 					t.finals[a.id] = points.pop_front()
@@ -605,7 +605,7 @@ static func tick(p, t: Dictionary, dt: float):
 				a.guard_angle = (
 					(SCData.center(d.inside) - a.position).angle()
 					if i == units.size() - 1
-					else room_angle(d.room, p.position_cell(a))
+					else room_angle(p.world.grid, d.room, p.position_cell(a))
 				)
 			w.room_checked[d.room] = w.time
 			finish(p, t)

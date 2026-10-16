@@ -25,8 +25,12 @@ Ordinary personnel are relatively easy to recruit, while elites are costly to tr
 
 Psionic performance depends on individual potential, training, and psychological state, and use accumulates psionic load. Psionics are wielded through the human themselves. Remote robot and android bodies do not have this ability.
 
+Effects include teleporting objects, blinking, manipulating objects at a distance, and disrupting perception and mental states; see [Psionics](psionics.md).
+
 ## SIA pilots
 
 An SIA pilot's consciousness is attached to their own biological body; they directly control one remote body at a time and bear its damage feedback. Relay Defense fights with robots operated by part-time human pilots.
 
-Eureka is a psionic master, currently preserved as disembodied brain tissue on an operations satellite, acting under the Observer identity.
+## Eureka
+
+Eureka is a psionic master preserved as disembodied brain tissue on an operations satellite, under the Observer identity. He connects to satellite hardware and experiences it through a cabin, CRT displays, and terminals in his consciousness; see [Observer](../people/observer.md).

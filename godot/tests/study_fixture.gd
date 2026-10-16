@@ -8,6 +8,11 @@ static func target_fixture() -> Dictionary:
 static func reset(scene):
 	scene.reset()
 	scene.arena_bounds = Rect2(-20, -20, 50, 40)
+	scene.simulation.grid.bounds=scene.arena_bounds
+	for id in scene.simulation.entities.keys():
+		if scene.simulation.entities[id].actor==null: scene.simulation.entities.erase(id)
+	for y in range(-20,20):
+		for x in range(-20,30): scene.simulation.grid.cells[Vector2i(x,y)]={"passable":true,"movement_multiplier":1.0,"ground_height_m":0.0,"cover_height_m":0.0}
 	scene.world_position = Vector2.ZERO
 	scene.facing = -PI / 2
 	scene.desired_facing = scene.facing
@@ -22,6 +27,7 @@ static func reset(scene):
 static func configure_fx(fx):
 	fx.targets.assign([target_fixture()])
 	fx.obstacles.clear()
+	fx.simulation.entities.clear()
 
 static func zero_aim(actor):
 	for key in ["aim_unsettled_degrees","aim_settled_degrees"]:

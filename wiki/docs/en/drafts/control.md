@@ -1,17 +1,17 @@
 ---
-description: Proposal for the Observer's view and access
+description: The Observer’s satellite hardware connection and proposed tactical view
 category: Drafts
 lang: en
 ---
 
 # Observer View and Access (Proposal)
 
-The arrangement in which the Observer commands multiple operatives while each pilot controls their own body is settled. How information is aggregated and the conditions for direct access remain to be confirmed.
+The Observer connects to satellite hardware and experiences it through a cabin, CRT displays, and terminals in his consciousness. This relationship is established. The tactical information aggregation described below remains a proposal.
 
-## Tactical view
+## Satellite hardware and the perceived cabin
 
-The orbital end aggregates the perception of robots, androids, squad members, and reconnaissance equipment into a top-down tactical view. The Observer commands multiple characters through the view. The pilots each handle direct control of their own bodies.
+The Observer’s brain tissue is connected to the operations satellite’s hardware. In his consciousness, these interfaces appear as a cabin where he sits before CRT displays and terminals, reads information received by the satellite, and issues commands. The satellite communicates with the surface through communications equipment, while individual SIA pilots control the remote bodies. The Observer’s connection to the satellite uses neither SIA nor psionics.
 
-## Direct access
+## Tactical view (proposal)
 
-The Observer's brain tissue is kept on the operations satellite. Under this proposal, it would connect to the SIA through a control interface. The feedback conditions for pain, fatigue, and psionic load, and the mode of cooperation with ordinary pilots, are listed under [Open Questions](questions.md).
+The orbital system aggregates information transmitted by squad members and reconnaissance equipment into a top-down tactical view on the terminals for commanding surface teams. The presentation of blind spots, latency, and interference remains to be determined; see [Open Questions](questions.md).

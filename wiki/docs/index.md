@@ -7,7 +7,7 @@ category: 首页
 
 《铁眼》的设定百科收录卡吕贝斯上的殖民地阿利贝的世界观、人物、组织、事件与玩法规则。
 
-2000年1月1日，阿利贝在大停电中失去统一调度。基础设施人工智能[深红](people/scarlet.md)控制轨道武器与部分联网设施；蓝袖军、唯一民主党等大型团体据守城区，多数居民藏匿或随小队迁移。游戏开局为大停电后30日（2000年1月31日），玩家扮演中继防务的远程指挥人员[观察员](people/observer.md)。
+2000年1月1日，阿利贝在大停电中失去统一调度。基础设施人工智能[深红](people/scarlet.md)控制轨道武器和少量联网设施；蓝袖军、唯一民主党等大型团体据守城区，多数居民藏匿或随小队迁移。游戏开局为大停电后30日（2000年1月31日），玩家扮演中继防务的远程指挥人员[观察员](people/observer.md)。
 
 ## 世界
 
@@ -52,6 +52,7 @@ category: 首页
 - [三类作战身体](technology/bodies.md)：[人类](technology/humans.md)、[机器人](technology/robots.md)、[仿生人](technology/androids.md)
 - [SIA](game/sia.md)
 - [钶特](technology/cot.md)
+- [灵能](technology/psionics.md)
 - [游戏：铁眼](game/overview.md)
 - [游戏：撤离循环](game/extraction.md)
 
@@ -59,6 +60,7 @@ category: 首页
 
 - [共同治理与法律（草案）](drafts/governance.md)
 - [观察员视图与接入（方案）](drafts/control.md)
+- [武装道士与役尸技术（草案）](drafts/armed-taoists.md)
 - [待讨论事项](drafts/questions.md)
 
 ## 编辑说明

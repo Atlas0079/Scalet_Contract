@@ -84,9 +84,11 @@ nav:
     - 黑栈: factions/black-stack.md
   - 资源与技术:
     - 钶特: technology/cot.md
+    - 灵能: technology/psionics.md
 - 创作草案:
   - 共同治理与法律（草案）: drafts/governance.md
   - 观察员视图与接入（方案）: drafts/control.md
+  - 武装道士与役尸技术（草案）: drafts/armed-taoists.md
   - 待讨论事项: drafts/questions.md
 - 编辑说明:
   - 写作规范: writing-guide.md
@@ -143,7 +145,9 @@ nav:
       - the Black Stack: en/factions/black-stack.md
     - Resource and Technology:
       - Cot: en/technology/cot.md
+      - Psionics: en/technology/psionics.md
   - Drafts:
     - Common Governance and Law (Draft): en/drafts/governance.md
     - Observer View and Access (Proposal): en/drafts/control.md
+    - Armed Taoists and Corpse Animation (Draft): en/drafts/armed-taoists.md
     - Open Questions: en/drafts/questions.md

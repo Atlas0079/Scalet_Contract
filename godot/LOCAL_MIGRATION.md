@@ -16,7 +16,7 @@
 运行时使用 GDScript。当前主场景为 `presentation/cabin/cabin.tscn`，组织舱室设备与内部画面。`presentation/tactical/tactical.tscn` 保留角色、动作、能力与射击验证，作为 CRT 内部场景及独立开发预览。
 
 - 模拟层位于 `simulation/`，对应原来的世界、地图、角色、移动、战斗、感知、命令、房间任务及物资模块。
-- `data/greyport.json` 存放任务与关卡数据，`data/catalog.json` 存放基础物品及物资定义。武器、弹药、配件、角色、身体、表现、单位、技能与属性来源分别存放在 `weapons.json`、`ammunition.json`、`attachments.json`、`characters.json`、`bodies.json`、`presentation.json`、`units.json`、`skills.json` 与 `attribute_sources.json`，由 `simulation/data.gd` 加载；武器对应的物品与物资条目、弹药物资条目由所属定义派生。这些文件是原生运行数据，不是运行时转换层。
+- `data/scenes.json` 存放维护站和射击场空间与实体定义，`data/equipment.json` 存放穿戴防护与护盾定义，`data/catalog.json` 存放基础物品及物资定义。武器、弹药、配件、角色、身体、表现、单位、技能与属性来源分别存放在 `weapons.json`、`ammunition.json`、`attachments.json`、`characters.json`、`bodies.json`、`presentation.json`、`units.json`、`skills.json` 与 `attribute_sources.json`，由 `simulation/data.gd` 加载；武器对应的物品与物资条目、弹药物资条目由所属定义派生。这些文件是原生运行数据，不是运行时转换层。
 - 角色与测试场表现位于 `presentation/tactical/`，共享能力说明位于 `presentation/interface.gd`。
 - 战斗模拟逻辑保留，完整战场与正式界面的接入范围以配置说明为准。
 

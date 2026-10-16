@@ -1,12 +1,12 @@
 # Project Handoff Notes
 
-Updated: 2026-10-10. This document gives the current project state and routes to the authoritative design documents. Design changes replace superseded descriptions in place; keep the documentation consistent with the latest confirmed decisions.
+Updated: 2026-10-13. This document gives the current project state and routes to the authoritative design documents. Design changes replace superseded descriptions in place; keep the documentation consistent with the latest confirmed decisions.
 
 ## Runtime and implementation state
 
 The active project is `godot/`, using GDScript. The default launchers and `godot/project.godot` start the Cabin Main Scene (`presentation/cabin/cabin.tscn`) with Forward+. Standalone maintenance and shooting-range preview launchers explicitly retain Compatibility rendering. Scene names, layers and responsibilities are defined in [design section 16](demo_design.md#16-项目职责与实现边界). The Python simulation in `combat_demo/` remains available for rule comparison. The full battlefield and interface under the current art direction have not yet been built.
 
-The character test range already provides animated movement, weapon handling and shooting. Ability sources, species conversion and independent skill accounts feed a shared ability snapshot. Consumers use the resulting abilities. Current implementation details and outstanding work are recorded in [configuration](../../godot/LOCAL_CONFIGURATION.md), [character architecture](../../godot/LOCAL_CHARACTER_ARCHITECTURE.md), and [shooting mechanics](../../godot/LOCAL_SHOOTING_FACTORS.md).
+Maintenance and the character test range now use SCWorld/SCGrid/SCEntity for spatial state, actors, doors, simulation time and collision. The test range provides animated movement, weapon handling and shooting. Shared weapon/equipment rules include kinetic, thermal and melee categories, layered armor, gas filtering and the all-direction kinetic shield. New weapon/equipment numerical values are initial validation data; their visual/UI integration and balancing remain pending. Ability sources, species conversion and independent skill accounts feed a shared ability snapshot. Consumers use the resulting abilities. Current implementation details and outstanding work are recorded in [configuration](../../godot/LOCAL_CONFIGURATION.md), [character architecture](../../godot/LOCAL_CHARACTER_ARCHITECTURE.md), and [shooting mechanics](../../godot/LOCAL_SHOOTING_FACTORS.md).
 
 ## Current AEON integration gap
 
@@ -138,7 +138,7 @@ The game-loop direction is loot collection, risk assessment, extraction, prepara
 
 Searching reveals information, allocation reserves work, and physical transfer changes ownership. The assigned carrier must reach the source and complete pickup. Macro and micro search use the same interaction and reservation rules. See [interaction and loot](interaction_and_loot.md).
 
-The Greyport scenario in [tactical design](demo_design.md) defines a functional rule-validation level. Its mission-specific victory rules are not the universal ending rules for the extraction loop.
+The active Godot logic loads maintenance and range scene definitions. Grayport mission data and its fixed spawning/victory assumptions have been removed; mission objectives and the full extraction loop remain to be defined. See [tactical design](demo_design.md).
 
 ## Current ownership
 

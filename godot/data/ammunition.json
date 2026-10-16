@@ -9,6 +9,7 @@
     "accuracy_degrees": [
       0.15,
       0.15
-    ]
+    ],
+    "penetration": 40
   }
 }

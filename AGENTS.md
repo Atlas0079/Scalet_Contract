@@ -18,6 +18,10 @@
 
 法律、组织和技术背景写到足以支撑人物、冲突与玩法即可。优先保留会改变角色处境或行动的规则，省去无关紧要的程序、例外和校验案例。
 
+## 用户邮件
+
+给用户发送邮件时，若用户未另行指定收件地址，默认发送到 `dddfrozenfang@gmail.com`。
+
 ## 提交与本地辅助文件
 
 Git author 和 committer 均使用：宋浩宇 <haoyusong@chinaesport.com>。禁止使用 Codex、codex@local.invalid 或其他 AI/代理身份。提交前检查实际生效身份；身份不明确时先确认，不自行虚构。

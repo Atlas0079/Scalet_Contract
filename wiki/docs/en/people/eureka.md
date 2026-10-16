@@ -39,6 +39,6 @@ On November 12, 1956 (8 days after departure), a repair tug towed the cargo ship
 
 ## Revival
 
-On December 31, 1999, through an anonymous intermediary, Scarlet arranged for Relay Defense to purchase the terminal and funded the revival and transport. Eureka was sent to an operations satellite in Calybes's low orbit and, under the code name "Observer," received remote-command training. The memory damage remained.
+In November 1999, through an anonymous intermediary, Scarlet arranged for Relay Defense to purchase the terminal and funded the revival and transport. Eureka was sent to an operations satellite in Calybes's low orbit and, under the code name "Observer," received remote-command training. Between his revival and the game opening on January 31, 2000, he has roughly two to three months to adjust and train. The memory damage remained.
 
 For the passage of time, see [key events](../events/timeline.md).

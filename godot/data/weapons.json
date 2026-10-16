@@ -30,7 +30,8 @@
         18.0
       ],
       "support_frequency": 4.0
-    }
+    },
+    "attack_category": "kinetic"
   },
   "test_carbine": {
     "item": {
@@ -63,6 +64,56 @@
         18.0
       ],
       "support_frequency": 4.0
-    }
+    },
+    "attack_category": "kinetic"
+  },
+  "thermal_emitter": {
+    "item": {
+      "id": "thermal_emitter",
+      "name": "热能发射器",
+      "mass": 4.0
+    },
+    "attack_category": "thermal",
+    "category": "emitter",
+    "range": 20.0,
+    "fire_interval": 0.3,
+    "accuracy_degrees": [
+      0.05,
+      0.05
+    ],
+    "attachments": [],
+    "damage": 35,
+    "penetration": 40,
+    "startup_seconds": 0.5,
+    "startup_energy_per_second": 2,
+    "attack_energy": 5,
+    "attack_heat": 20,
+    "energy_capacity": 100,
+    "cooling_per_second": 5,
+    "overheat_threshold": 100,
+    "battery_replace_seconds": 2,
+    "radiator_replace_seconds": 3,
+    "charge_per_second": 10
+  },
+  "melee_tool": {
+    "item": {
+      "id": "melee_tool",
+      "name": "近战武器",
+      "mass": 1.5
+    },
+    "attack_category": "melee",
+    "category": "melee",
+    "range": 1.2,
+    "fire_interval": 0.8,
+    "accuracy_degrees": [
+      0,
+      0
+    ],
+    "attachments": [],
+    "damage": 25,
+    "penetration": 40,
+    "preparation_seconds": 0.2,
+    "active_seconds": 0.1,
+    "recovery_seconds": 0.5
   }
 }

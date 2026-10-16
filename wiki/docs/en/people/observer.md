@@ -14,15 +14,19 @@ infobox:
 
 # Observer
 
-The Observer is a remote commander at Relay Defense. His brain tissue is kept on an operations satellite in Calybes's low orbit, and he commands a surface team through an interface. He is actually the amnesiac Eureka. He himself does not yet know this identity.
+The Observer is a remote command officer of Relay Defense. His brain tissue is kept on an operations satellite in low orbit around Calybes. He connects to its hardware and commands surface teams through satellite communications. He is Eureka after his memory loss, an identity he does not yet know.
 
 ## Origins
 
-Eureka remained frozen on the surface for about 43 years. On December 31, 1999, he was purchased, revived, and sent to the satellite for training by Relay Defense; the purchase and transport were arranged by Scarlet through anonymous intermediaries, and Relay Defense registered him under the code name "Observer." The early oxygen deprivation cost him much of his long-term episodic memory, while language, judgment, and learned skills largely survived.
+Eureka remained frozen on the surface for about 43 years. In November 1999, he was purchased, revived, and sent to the satellite for training by Relay Defense; the purchase and transport were arranged by Scarlet through anonymous intermediaries, and Relay Defense registered him under the code name "Observer." The early oxygen deprivation cost him much of his long-term episodic memory, while language, judgment, and learned skills largely survived.
+
+## Satellite interface
+
+The Observer’s brain tissue is connected to the operations satellite’s hardware. In his consciousness, these interfaces appear as a cabin where he sits before CRT displays and terminals, reads information received by the satellite, and issues commands. The satellite communicates with the surface through communications equipment, while individual SIA pilots control the remote bodies. The Observer’s connection to the satellite uses neither SIA nor psionics.
 
 ## Game start
 
-On January 31, 2000 (30 days after the Blackout), the Observer receives his first surface commissions: establish a stronghold, extract personnel, and recover supplies. He commands multiple squad members. The remote bodies are directly controlled by their SIA pilots. For the Observer's own access conditions, see [Observer View and Access (Proposal)](../drafts/control.md).
+On January 31, 2000 (30 days after the Blackout), the Observer receives his first surface commissions: establish a stronghold, extract personnel, and recover supplies. He commands multiple squad members. The remote bodies are directly controlled by their SIA pilots. For the proposed tactical view, see [Observer View and Access (Proposal)](../drafts/control.md).
 
 ## Later Story
 

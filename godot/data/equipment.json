@@ -1,0 +1,117 @@
+{
+  "spacesuit": {
+    "name": "宇航服",
+    "kind": "suit",
+    "mass": 8,
+    "movement_multiplier": 0.9,
+    "operation_multiplier": 0.9,
+    "max_durability": 100,
+    "layer": 1,
+    "coverage": [
+      "head",
+      "torso",
+      "left_arm",
+      "right_arm",
+      "left_leg",
+      "right_leg"
+    ],
+    "protection": {
+      "kinetic": 1,
+      "thermal": 60,
+      "melee": 1
+    },
+    "incompatible": [
+      "heavy_armor"
+    ],
+    "filter_efficiency": 0.99,
+    "filter_capacity": 100,
+    "wear_seconds": 3.0,
+    "remove_seconds": 2.0
+  },
+  "ballistic_armor": {
+    "name": "防弹装甲",
+    "kind": "armor",
+    "mass": 10,
+    "movement_multiplier": 0.85,
+    "operation_multiplier": 0.9,
+    "max_durability": 100,
+    "layer": 2,
+    "coverage": [
+      "head",
+      "torso",
+      "left_arm",
+      "right_arm",
+      "left_leg",
+      "right_leg"
+    ],
+    "protection": {
+      "kinetic": 60,
+      "thermal": 5,
+      "melee": 60
+    },
+    "incompatible": [],
+    "wear_seconds": 3.0,
+    "remove_seconds": 2.0
+  },
+  "heavy_armor": {
+    "name": "重型防弹装甲",
+    "kind": "armor",
+    "mass": 24,
+    "movement_multiplier": 0.65,
+    "operation_multiplier": 0.75,
+    "max_durability": 100,
+    "layer": 2,
+    "coverage": [
+      "head",
+      "torso",
+      "left_arm",
+      "right_arm",
+      "left_leg",
+      "right_leg"
+    ],
+    "protection": {
+      "kinetic": 90,
+      "thermal": 8,
+      "melee": 90
+    },
+    "incompatible": [
+      "spacesuit"
+    ],
+    "wear_seconds": 3.0,
+    "remove_seconds": 2.0
+  },
+  "kinetic_shield": {
+    "name": "反动能护盾",
+    "kind": "shield",
+    "mass": 4,
+    "movement_multiplier": 0.95,
+    "operation_multiplier": 0.95,
+    "max_durability": 100,
+    "layer": 3,
+    "coverage": [
+      "head",
+      "torso",
+      "left_arm",
+      "right_arm",
+      "left_leg",
+      "right_leg"
+    ],
+    "protection": {
+      "kinetic": 0,
+      "thermal": 0,
+      "melee": 0
+    },
+    "incompatible": [],
+    "energy_capacity": 100,
+    "standby_energy_per_second": 1,
+    "block_energy": 2,
+    "block_heat": 8,
+    "cooling_per_second": 5,
+    "overheat_threshold": 100,
+    "battery_replace_seconds": 2,
+    "radiator_replace_seconds": 3,
+    "charge_per_second": 10,
+    "wear_seconds": 3.0,
+    "remove_seconds": 2.0
+  }
+}

@@ -26,7 +26,3 @@ An autonomous android judges and bears stress and pain on its own; its experienc
 A human pilot can take over a body with its consciousness off through SIA, using the pilot's experience and the muscle memory accumulated by the body's own consciousness. The dormant consciousness takes no part in decisions. The psychological burden and damage feedback are borne by the pilot.
 
 After disconnection, remote active actions stop. The consciousness state is preserved until handled during outfitting at base. Androids cannot serve as SIA pilots and have no psionics. Carrying a consciousness of human origin does not change these bodily limits.
-
-## Autonomous androids after the Blackout
-
-After the Blackout, some autonomous androids joined large survivor groups, taking on work or guard duty, refusing Golem's recall, and having companions go to refit centers to collect consumables for them. Golem still records these collections in the body files.

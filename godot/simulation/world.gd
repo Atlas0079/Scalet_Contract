@@ -9,7 +9,6 @@ var planner: SCPlanner
 var perception: SCPerception
 var loot: SCLoot
 var rng = RandomNumberGenerator.new()
-var config: String = "A"
 var time: float = 0.0
 var tick_index: int = 0
 var paused: bool = true
@@ -32,69 +31,103 @@ var deaths_processed: Dictionary = {}
 var stats: Dictionary = {"rounds": 0, "friendly_hits": 0, "friendly_stuns": 0, "items": {}}
 
 
-func _init(configuration: String = "A"):
-	config = configuration if configuration in ["A", "B", "C"] else "A"
+var scene_definition: Dictionary
+var entities: Dictionary = {}
+var manual_control := false
+var weapon_clock_external := false
+
+func _init(scene_name: String = "maintenance", controlled := false):
+	manual_control = controlled
+	assert(SCData.scenes.has(scene_name),"Unknown scene: "+scene_name)
+	scene_definition = SCData.scenes[scene_name].duplicate(true)
 	grid = SCGrid.new()
-	grid.create_greyport()
-	rng.seed = int(SCData.mission.seeds[config])
-	var labels = ["先锋", "侧翼", "支援", "后卫"]
-	for i in range(4):
-		actors.append(SCActor.new(i + 1, labels[i], "red", Vector2(33.5 + i * 2, 32.5), -PI / 2, SCData.mission.unit_templates.squad, skill_registry))
-	var index = 0
-	for room in SCData.mission.spawns:
-		var count = int(SCData.mission.counts[config][index])
-		index += 1
-		for i in range(count):
-			var spawn = SCData.mission.spawns[room][i]
-			var cell = SCData.cell(spawn[0])
-			var a = SCActor.new(
-				101 + actors.size() - 4, "敌人", "blue", SCData.center(cell), float(spawn[1]), SCData.mission.unit_templates.enemy, skill_registry
-			)
-			a.home_cell = cell
-			a.home_angle = a.facing
-			a.ai_enabled = true
-			if i == 0 and SCData.mission.patrols.has(room):
-				for c in SCData.mission.patrols[room]:
-					a.patrol.append(SCData.cell(c))
-			a.ai_state = "patrol" if not a.patrol.is_empty() else "guard"
-			actors.append(a)
-	for a in actors:
-		actor_index[a.id] = a
+	rng.seed = int(scene_definition.seed)
+	for spec in scene_definition.entities:
+		entities[spec.id] = SCEntity.new(spec)
+	for spec in scene_definition.actors:
+		var character := SCActor.new(int(spec.id),spec.label,spec.team,SCCombat.pair(spec.position_m),spec.facing_radians,spec.unit,skill_registry)
+		add_actor(character)
+	grid.load_scene(scene_definition,entities)
 	planner = SCPlanner.new(self)
 	perception = SCPerception.new()
 	loot = SCLoot.new(self)
-	perception.refresh(self, 0.0, true)
-	loot.add(
-		"case:S",
-		"现场补给箱",
-		"case",
-		Vector2i(35, 31),
-		[loot.item("rifle", 1, 17), loot.item("bandage", 2), loot.item("rifle_ammo", 30)]
-	)
-	var caches = {
-		"R": Vector2i(33, 27),
-		"O": Vector2i(37, 20),
-		"A": Vector2i(35, 11),
-		"M": Vector2i(26, 3),
-		"W": Vector2i(12, 19),
-		"L": Vector2i(8, 27),
-		"U": Vector2i(3, 15),
-		"N": Vector2i(17, 5)
-	}
-	for room in caches:
-		loot.add(
-			"cache:" + room,
-			grid.zones[room].label + "物资柜",
-			"container",
-			caches[room],
-			[
-				loot.item("intel" if room == "A" else "parts"),
-				loot.item("bandage"),
-				loot.item("rifle_ammo", 20)
-			]
-		)
-	loot.add("drop:S", "地面物品", "ground", Vector2i(37, 31), [loot.item("flashbang")])
-	loot.refresh()
+	paused = false
+
+func add_actor(character: SCActor):
+	character.world = self
+	actors.append(character)
+	actor_index[character.id] = character
+	entities[character.identity] = SCEntity.new({"id":character.identity,"label":character.actor_name,"classification":"dropped","position_m":[character.position.x,character.position.y],"blocks_movement":true,"blocks_sight":false,"blocks_projectile":true},character)
+	entities[character.identity].space=weakref(grid)
+
+func move_actor(character: SCActor, offset: Vector2) -> Vector2:
+	if paused or not character.capabilities.permissions.can_move: return character.position
+	character.previous_position = character.position
+	var terrain: Dictionary = grid.cells[SCData.cell_of(character.position)]
+	character.position = grid.move_body(character.position,offset*terrain.movement_multiplier,character.radius,character.height,character)
+	character.occupied_cell = SCData.cell_of(character.position)
+	return character.position
+
+func operate_door(id: String, character: SCActor, opened: bool) -> String:
+	if character.world!=self or not entities.has(id): return "目标不属于当前世界"
+	var entity: SCEntity = entities[id]
+	if not character.capabilities.permissions.can_operate: return "无法操作"
+	if character.position.distance_to(entity.position)>1.65: return "距离过远"
+	if not opened:
+		for other in entities.values():
+			if other==entity or not other.exists: continue
+			if other.actor==null and other.definition.classification!="dropped": continue
+			if entity.footprint().intersects(other.footprint()): return "先移开门内实体"
+	return entity.request_door(opened)
+
+func inspect(character: SCActor) -> String:
+	if character.world!=self or not character.capabilities.permissions.can_operate: return "无法查看现场"
+	var found = null
+	var nearest := INF
+	for entity in entities.values():
+		if not entity.exists: continue
+		for operation in entity.definition.get("operations",[]):
+			var distance := character.position.distance_to(entity.position)
+			if operation.kind=="inspect" and distance<=operation.range_m and distance<nearest:
+				var ray := grid.raycast(character.position,entity.position,character.eye_height,character.eye_height,"sight")
+				if ray[1]!=null and ray[1].get("id","")!=entity.definition.id: continue
+				nearest=distance; found={"entity":entity,"operation":operation}
+	if found==null: return "靠近工作台、配电区或出口，再按 E 查看现场。"
+	return found.entity.definition.label+"\n"+found.operation.text
+
+func advance_state(dt: float):
+	if paused: return
+	time += dt
+	tick_index += 1
+	var geometry_changed := false
+	for entity in entities.values():
+		var previous: float = entity.door.get("progress",0.0)
+		if not entity.door.is_empty() and entity.door.state=="closing":
+			for other in entities.values():
+				if other==entity or not other.exists or other.actor==null and other.definition.classification!="dropped": continue
+				if entity.footprint().intersects(other.footprint()): entity.door.state="stopped"; break
+		entity.advance(dt)
+		if entity.door.get("progress",0.0)!=previous: geometry_changed=true
+	for door in grid.interactables.values():
+		door.state=door.entity.door.state
+		door.locked=door.entity.door.locked
+		if door.entity.door.placement=="edge":
+			var f = grid.edge_at(SCData.cell(door.entity.definition.edge_cell),door.entity.definition.edge_direction)
+			for kind in ["movement","sight","projectile"]: f["blocks_"+kind]=door.entity.blocks(kind)
+	if geometry_changed:
+		grid.revision += 1
+		grid.path_cache.clear()
+	for character in actors:
+		if not character.alive:
+			if not deaths_processed.has(character.id):
+				deaths_processed[character.id]=true
+				planner.cancel_actor(character)
+				loot.corpse(character)
+			continue
+		SCEquipment.advance(character,dt)
+		if not weapon_clock_external: SCWeaponRules.advance(character,dt)
+		character.refresh_capabilities(time)
+
 
 
 func actor(id):
@@ -124,6 +157,9 @@ func door_state(id: String) -> String:
 func update(dt: float):
 	if paused or winner != null:
 		return
+	if manual_control:
+		advance_state(dt)
+		return
 	var step = 1.0 / 60.0
 	accumulator += maxf(0.0, dt)
 	var count = 0
@@ -138,8 +174,7 @@ func update(dt: float):
 
 
 func tick(dt: float):
-	time += dt
-	tick_index += 1
+	advance_state(dt)
 	for shot in shots:
 		if shot.finished: shot.timer -= dt
 	shots = shots.filter(func(shot): return not shot.finished or shot.timer > 0)
@@ -151,7 +186,6 @@ func tick(dt: float):
 				group.remove_at(i)
 	for a in actors:
 		a.previous_position = a.position
-		a.weapon.cooldown = maxf(0.0, a.weapon.cooldown - dt)
 		a.stunned = maxf(0.0, a.stunned - dt)
 		a.refresh_capabilities(time)
 		SCCombat.advance_recoil(a, dt)
@@ -201,7 +235,6 @@ func tick(dt: float):
 			if a.team == "red":
 				message("%d %s 阵亡" % [a.id, a.actor_name], "hit")
 				pause_requested = true
-	check_winner()
 	if pause_requested and winner == null:
 		set_paused(true)
 	pause_requested = false
@@ -400,10 +433,13 @@ func combat(a, dt: float):
 	if a.reaction < a.reaction_seconds or a.aim_progress < a.capabilities.values.minimum_fire_progress:
 		SCCombat.stop_firing(a)
 		return
+	if a.weapon.definition.attack_category!="kinetic":
+		attack(a,target)
+		return
 	if a.position.distance_to(target.position) > a.weapon.definition.range:
 		SCCombat.stop_firing(a)
 		return
-	if a.weapon.ammo == 0:
+	if a.weapon.definition.attack_category=="kinetic" and a.weapon.ammo == 0:
 		SCCombat.stop_firing(a)
 		if a.weapon.reserve_ammo > 0:
 			start_action(
@@ -432,7 +468,7 @@ func combat(a, dt: float):
 	if not a.capabilities.permissions.can_aim:
 		SCCombat.stop_firing(a)
 		return
-	if a.weapon.cooldown > 0: return
+	if not SCWeaponRules.can_attack(a): return
 	var event = SCCombat.create_shot(a, target.position, target.height * target.definition.chest_height_fraction, rng)
 	SCSkills.award(a,"shooting",SCData.catalog.skills.experience.shooting_per_shot,"%s:shot:%d:%d" % [a.identity,tick_index,a.weapon.shots_fired])
 	shots.append(event)
@@ -490,6 +526,7 @@ func start_action(
 		if not error.is_empty():
 			return error
 	if kind == "reload":
+		if a.weapon.definition.attack_category!="kinetic": return "该武器不使用弹药"
 		if a.weapon.reserve_ammo <= 0:
 			return "储备弹药耗尽"
 		duration = a.weapon.definition.reload_time
@@ -526,7 +563,7 @@ func start_action(
 		"part_id": part,
 		"owner_token": token,
 		"refill":
-		mini(int(a.weapon.definition.magazine_size - a.weapon.ammo), int(a.weapon.reserve_ammo)),
+		mini(int(a.weapon.definition.magazine_size - a.weapon.ammo), int(a.weapon.reserve_ammo)) if a.weapon.definition.attack_category=="kinetic" else 0,
 		"object_id": options.get("object_id"),
 		"cargo_id": options.get("cargo_id")
 	}
@@ -661,24 +698,54 @@ func flash(projectile: Dictionary):
 			stats.friendly_stuns += 1
 
 
-func check_winner():
-	var red = actors.any(func(a): return a.alive and a.team == "red")
-	var blue = actors.any(func(a): return a.alive and a.team == "blue")
-	if not red:
-		winner = "blue"
-	elif not blue and not combat_cleared:
-		winner = "red"
-	if winner != null:
-		message(
-			"任务完成 · 全部敌人已消灭" if winner == "red" else "任务失败 · 小队全灭",
-			"ready" if winner == "red" else "reject"
-		)
+
+func attack(shooter: SCActor, target: SCActor) -> String:
+	if shooter.world!=self or target.world!=self: return "角色不在当前世界"
+	if shooter.position.distance_to(target.position)>shooter.weapon.definition.range: return "超出攻击距离"
+	if shooter.weapon.definition.attack_category=="thermal":
+		SCWeaponRules.begin_trigger(shooter,true)
+		if shooter.weapon.startup_elapsed<shooter.weapon.definition.startup_seconds: return "启动中"
+	if not SCWeaponRules.can_attack(shooter): return "武器当前不可用"
+	if shooter.weapon.definition.attack_category=="kinetic":
+		shots.append(SCCombat.create_shot(shooter,target.position,target.height*.7,rng))
+	elif shooter.weapon.definition.attack_category=="melee":
+		SCWeaponRules.consume(shooter)
+		shooter.weapon.action={"kind":"melee","target":target,"elapsed":0.0,"remaining":shooter.weapon.definition.fire_interval,"hit":false}
+	else:
+		SCWeaponRules.consume(shooter)
+		resolve_attack(shooter,target)
+	return ""
+
+func resolve_attack(shooter: SCActor, target: SCActor) -> Dictionary:
+	var profile := SCWeaponRules.attack_profile(shooter.weapon)
+	if shooter.position.distance_to(target.position)>shooter.weapon.definition.range: return {"damage":0.0,"reason":"超出攻击距离"}
+	var origin := Vector3(shooter.position.x,shooter.muzzle_height,shooter.position.y)
+	var aim := Vector3(target.position.x,target.height*.7,target.position.y)
+	var width := SCCombat.weapon_accuracy(shooter.weapon)
+	var direction := SCCombat.shot_direction(aim-origin,SCCombat.holding_error(shooter)+SCCombat.scatter(width,rng)) if profile.category=="thermal" else (aim-origin).normalized()
+	var finish: Vector3 = origin+direction*shooter.weapon.definition.range
+	var hit := grid.raycast(shooter.position,Vector2(finish.x,finish.z),origin.y,finish.y,"projectile")
+	var best: float = hit[0]
+	var victim: SCActor
+	for other in actors:
+		if other==shooter: continue
+		var fraction := SCCombat.cylinder_hit_fraction(shooter.position,Vector2(finish.x,finish.z),origin.y,finish.y,other.position,other.position,other.radius,0,entities[other.identity].height())
+		if fraction>=0 and fraction<best: best=fraction; victim=other
+	if victim==null: return {"damage":0.0,"reason":"未命中"}
+	return victim.resolve_hit(SCCombat.body_region(lerpf(origin.y,finish.y,best),victim,rng),profile.damage,rng,profile.category,profile.penetration)
 
 
-func continue_looting():
-	if winner != "red":
-		return
-	combat_cleared = true
-	winner = null
-	set_paused(true)
-	message("威胁清除 · 可以继续搜索和整理携带物品")
+func controlled_movement(character: SCActor, input: Vector2, desired_facing: float, dt: float) -> Dictionary:
+	var before_facing := character.facing
+	if paused or dt<=0: return {"angle":0.0,"speed_factor":1.0,"before_facing":before_facing}
+	if not character.capabilities.permissions.can_move:
+		character.velocity=Vector2.ZERO
+		return {"angle":0.0,"speed_factor":0.0,"before_facing":before_facing}
+	character.facing=rotate_toward(character.facing,desired_facing,character.turn_speed*dt)
+	var angle := absf(angle_difference(character.facing,input.angle())) if input.length_squared()>0 else 0.0
+	var factor := SCData.angle_speed(character.capabilities.values.move_angle_curve,angle)
+	character.velocity=character.velocity.move_toward(input.limit_length()*character.speed*factor,dt*character.capabilities.values.acceleration_mps2)
+	var before := character.position
+	move_actor(character,character.velocity*dt)
+	character.velocity=(character.position-before)/dt
+	return {"angle":angle,"speed_factor":factor,"before_facing":before_facing}

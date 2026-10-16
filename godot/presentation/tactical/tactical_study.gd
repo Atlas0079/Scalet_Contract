@@ -16,15 +16,25 @@ var cameras: Array[Camera3D] = []
 var sprites: Array[Sprite2D] = []
 var zoom_sprites: Array[Sprite2D] = []
 var views: Array[SubViewport] = []
-var world_position := Vector2.ZERO
-var velocity := Vector2.ZERO
-var facing := -PI / 2.0
+var simulation: SCWorld
+var world_position: Vector2:
+	get: return character.position
+	set(value): character.position = value
+var velocity: Vector2:
+	get: return character.velocity
+	set(value): character.velocity=value
+var facing: float:
+	get: return character.facing
+	set(value): character.facing = value
 var desired_facing := -PI / 2.0
 var target := Vector2(0, -2.5)
 var angle := 0.0
 var speed_factor := 1.0
 var demo := true
-var paused := false
+var paused: bool:
+	get: return simulation.paused if simulation else false
+	set(value):
+		if simulation: simulation.set_paused(value)
 var guides := false
 var demo_time := 0.0
 var demo_segment := -1
@@ -37,7 +47,9 @@ var guide_button: Button
 var ui: Control
 var effect_views: Array[Dictionary] = []
 var trigger_held := false
-var fire_cooldown := 0.0
+var fire_cooldown: float:
+	get: return character.weapon.cooldown
+	set(value): character.weapon.cooldown=value
 var shots_fired := 0
 var ballistic_rng := RandomNumberGenerator.new()
 var fire_status: Label
@@ -62,7 +74,8 @@ var map_clip: Control
 var zoom_clip: Control
 var arena_bounds: Rect2
 var test_pilot: SCActor
-var simulation_time := 0.0
+var simulation_time: float:
+	get: return simulation.time
 var aim_speed := 0.0
 var aim_turn_rate := 0.0
 var force_index := 0
@@ -100,7 +113,9 @@ func cycle_weapon():
 	set_trigger(false, false)
 	var presentation: Dictionary = SCData.catalog.presentation.weapons[character.weapon.definition.presentation]
 	if presentation.rig == units[0].weapon_presentation.rig:
-		for unit in units: unit.configure_weapon(character.weapon)
+		for unit in units:
+			unit.configure_weapon(character.weapon)
+			unit.effects.bind_world(simulation,unit==units[0])
 		reset()
 		refresh_weapon_ui()
 		return
@@ -142,11 +157,13 @@ func _ready():
 	window.min_size = Vector2i(1280, 720)
 	window.size = DESIGN_SIZE
 	window.size_changed.connect(update_render_resolution)
-	var bounds: Array = SCData.study.range.bounds_m
+	simulation = SCWorld.new("range",true)
+	simulation.weapon_clock_external=true
+	var bounds: Array = simulation.scene_definition.bounds_m
 	arena_bounds = Rect2(bounds[0], bounds[1], bounds[2], bounds[3])
 	character_choices = SCData.study.character_choices
 	weapon_choices = SCData.study.weapon_choices
-	character = SCActor.new(0, "试射员", "red", Vector2.ZERO, -PI / 2, SCData.study.unit)
+	character = simulation.actors[0]
 	character.training_enabled = false
 	test_pilot = SCActor.new(-1,"测试机师","red",Vector2.ZERO,0,"test_operator",character.skill_registry)
 	test_pilot.training_enabled = false
@@ -346,6 +363,7 @@ func make_unit(index: int):
 	unit.weapon_state = character.weapon
 	view.add_child(unit)
 	units.append(unit)
+	unit.effects.bind_world(simulation,index==0)
 	unit.gait.modification_processed.connect(refresh_ui)
 	var camera := Camera3D.new()
 	view.add_child(camera)
@@ -465,7 +483,7 @@ func toggle_guides():
 	queue_redraw()
 
 func fire(elapsed_since_shot := 0.0) -> bool:
-	if paused or fire_cooldown > 0.000001 or not character.capabilities.permissions.can_aim: return false
+	if paused or fire_cooldown > 0.000001 or not character.capabilities.permissions.can_aim or not SCWeaponRules.can_attack(character,true): return false
 	for unit in units:
 		if unit.current_action == "reload": return false
 	var error := SCCombat.mechanical_error(character.weapon, ballistic_rng)
@@ -486,6 +504,7 @@ func set_trigger(value: bool, manual := true):
 		demo_button.text = "巡回演示：关"
 	if value == trigger_held: return
 	trigger_held = value
+	SCWeaponRules.begin_trigger(character,value)
 	if value: fire()
 	else: SCCombat.stop_firing(character)
 
@@ -499,10 +518,9 @@ func advance_firing(delta: float):
 		fire_cooldown = 0.0
 		if not fire(remaining): break
 	advance_shooter(remaining)
-	fire_cooldown = maxf(0.0, fire_cooldown - remaining)
-	character.weapon.cooldown = fire_cooldown
 
 func advance_shooter(delta: float):
+	SCWeaponRules.advance(character,delta)
 	SCCombat.advance_recoil(character, delta)
 	SCCombat.advance_aim(character, delta, units[0].current_action != "reload", aim_speed, aim_turn_rate)
 
@@ -624,34 +642,17 @@ func demo_motion(delta: float) -> Vector2:
 	return Vector2.ZERO
 
 func move_in_range(start: Vector2, offset: Vector2) -> Vector2:
-	var at := start
-	# Axis-separated sweeps allow sliding while preventing high-speed tunneling.
-	for axis in [Vector2(offset.x, 0), Vector2(0, offset.y)]:
-		if axis.length_squared() < 0.00000001: continue
-		var fraction := 1.0
-		for obstacle in units[0].effects.obstacles:
-			var rect: Rect2 = obstacle.rect.grow(character.radius)
-			var box := AABB(Vector3(rect.position.x, 0, rect.position.y), Vector3(rect.size.x, 10, rect.size.y))
-			var hit := SCCombat.box_hit_fraction(Vector3(at.x, 1, at.y), Vector3(at.x + axis.x, 1, at.y + axis.y), box)
-			if hit >= 0.0: fraction = minf(fraction, maxf(0.0, hit - 0.0001))
-		at += axis * fraction
-	var allowed := arena_bounds.grow(-character.radius)
-	return at.clamp(allowed.position, allowed.end)
+	character.position = start
+	return simulation.move_actor(character,offset)
 
 func step(delta: float, move: Vector2):
 	if paused: return
-	simulation_time += delta
-	character.refresh_capabilities(simulation_time)
-	if not character.capabilities.permissions.can_move: move = Vector2.ZERO
-	var before_facing := facing
-	facing = rotate_toward(facing, desired_facing, character.turn_speed * delta)
-	angle = absf(angle_difference(facing, move.angle())) if move.length_squared() > 0 else 0.0
-	speed_factor = angle_speed(angle)
-	velocity = velocity.move_toward(move * character.speed * speed_factor, delta * character.capabilities.values.acceleration_mps2)
-	var before := world_position
-	world_position = move_in_range(world_position, velocity * delta)
-	var actual_velocity := (world_position - before) / maxf(delta, 0.00001)
-	velocity = actual_velocity
+	simulation.update(delta)
+	var motion := simulation.controlled_movement(character,move,desired_facing,delta)
+	angle=motion.angle
+	speed_factor=motion.speed_factor
+	var before_facing: float = motion.before_facing
+	var actual_velocity: Vector2 = character.velocity
 	var yaw := PI / 2.0 - facing
 	var local := Vector3(actual_velocity.x, 0, actual_velocity.y).rotated(Vector3.UP, -yaw)
 	var turn := absf(angle_difference(before_facing, facing)) / maxf(delta, 0.00001) / maxf(character.turn_speed, 0.000001)

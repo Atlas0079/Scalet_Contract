@@ -26,7 +26,7 @@ python3 wiki/start.py
 
 直接修改 `wiki/docs/` 下的 Markdown 文件，保存后网页自动刷新。新增词条后，在 `mkdocs.yml` 的 `nav` 中添加入口，并用相对 Markdown 链接连接相关页面。浏览器用于阅读，正文在文件中编辑。
 
-`docs/深红殖民地世界观设定整理.md` 已改为入口索引，游戏与世界观词条在本 Wiki 中维护。已定内容与草案保持各自的状态；尚未确定的内容集中在 [待讨论事项](docs/drafts/questions.md)。
+`docs/深红殖民地世界观设定整理.md` 保存设定总集，游戏与世界观词条在本 Wiki 中分条呈现；删改内容时同步维护两处。已定内容与草案保持各自的状态；尚未确定的内容集中在 [待讨论事项](docs/drafts/questions.md)。
 
 ## 导出与后续托管
 

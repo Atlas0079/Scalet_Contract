@@ -118,7 +118,8 @@ func verify():
 		check(shot.blocked and absf(shot.height - 1.0) < 0.00001 and absf(shot.end.x - 5.25) < 0.00001, "FPS changed cover collision")
 	var above := g.raycast(Vector2(4.5, 2.5), Vector2(6.5, 2.5), 1.3, 1.3, "projectile")
 	check(above[1] == null, "A bullet above cover was blocked")
-	g.set_cell(Vector2i(5, 2), SCGrid.feature("window", 0.9, true, false, true))
+	g.set_cell(Vector2i(5,2),SCGrid.feature("sill",.9,true,false,true))
+	g.entities["lintel"]=SCEntity.new({"id":"lintel","label":"窗上沿","classification":"fixed","position_m":[5.5,2.5],"footprint_m":[1,1],"bottom_m":2.2,"height_m":1,"blocks_movement":false,"blocks_sight":true,"blocks_projectile":true})
 	for h in [0.8, 1.4, 2.4]:
 		var hit := g.raycast(Vector2(4.5, 2.5), Vector2(6.5, 2.5), h, h, "projectile")
 		check((hit[1] == null) == (h == 1.4), "Window sill/opening/lintel interval is wrong")
@@ -174,7 +175,7 @@ func verify():
 		var fx = FX.new(SCData.weapon("test_carbine"))
 		FIXTURE.configure_fx(fx)
 		if cover > 0:
-			fx.obstacles.append({"id":"cover", "label":"掩体", "kind":"cover", "rect":Rect2(-0.65,-1.33,1.3,0.16), "height":cover})
+			fx.simulation.entities["cover"]=SCEntity.new({"id":"cover","label":"掩体","classification":"fixed","position_m":[0,-1.25],"footprint_m":[1.3,.16],"bottom_m":0,"height_m":cover,"blocks_movement":true,"blocks_sight":true,"blocks_projectile":true})
 		fx.emit_shot(Vector3(0, 1.25, 0), Vector3(0, 1.25, 0), Vector3.FORWARD, Vector2.RIGHT)
 		fx.advance(0.02)
 		check(fx.total_hits == (1 if cover < 1.25 else 0) and fx.total_blocked == (0 if cover < 1.25 else 1), "Study cover height had no effect")

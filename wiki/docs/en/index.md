@@ -53,6 +53,7 @@ On January 1, 2000, Alybe lost unified coordination in the Blackout. The infrast
 - [Three Types of Combat Bodies](technology/bodies.md): [Humans](technology/humans.md), [Robots](technology/robots.md), [Androids](technology/androids.md)
 - [SIA](game/sia.md)
 - [Cot](technology/cot.md)
+- [Psionics](technology/psionics.md)
 - [Game: Iron Eye](game/overview.md)
 - [Game: Extraction Cycle](game/extraction.md)
 
@@ -60,6 +61,7 @@ On January 1, 2000, Alybe lost unified coordination in the Blackout. The infrast
 
 - [Common Governance and Law (Draft)](drafts/governance.md)
 - [Observer View and Access (Proposal)](drafts/control.md)
+- [Armed Taoists and Corpse Animation (Draft)](drafts/armed-taoists.md)
 - [Open Questions](drafts/questions.md)
 
 ## Editorial Notes

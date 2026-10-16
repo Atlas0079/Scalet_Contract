@@ -3,7 +3,7 @@ extends RefCounted
 
 static var errors: PackedStringArray = []
 static var catalog: Dictionary = load_catalog()
-static var mission: Dictionary = read_document("res://data/greyport.json")
+static var scenes: Dictionary = read_document("res://data/scenes.json")
 static var study: Dictionary = read_document("res://data/tactical_study.json")
 
 
@@ -18,7 +18,7 @@ static func read_document(path: String) -> Dictionary:
 
 static func load_catalog() -> Dictionary:
 	var result := read_document("res://data/catalog.json")
-	for category in ["weapons", "ammunition", "attachments", "characters", "bodies", "presentation", "units", "skills", "attribute_sources"]:
+	for category in ["weapons", "ammunition", "attachments", "characters", "bodies", "presentation", "units", "skills", "attribute_sources", "equipment"]:
 		result[category] = read_document("res://data/%s.json" % category)
 	var character_document: Dictionary = result.characters
 	result.characters = character_document.get("profiles", {})
@@ -30,7 +30,7 @@ static func load_catalog() -> Dictionary:
 		if not w is Dictionary or not w.get("item") is Dictionary: continue
 		if not w.item.has("name") or not w.item.has("mass"): continue
 		result.items[id] = {"item": w.item, "order": 10, "uses": [{
-			"id": "reload", "label": "换弹", "target": "self", "cost": 0,
+			"id": "reload" if w.attack_category=="kinetic" else "service", "label": "换弹" if w.attack_category=="kinetic" else "维护", "target": "self", "cost": 0,
 			"range": 0.0, "radius": 0.0, "breach": false, "effect": ""
 		}]}
 		result.loot_kinds[id] = [w.item.name, w.item.mass]
@@ -44,12 +44,7 @@ static func load_catalog() -> Dictionary:
 static func ensure_valid(tree: SceneTree) -> bool:
 	var problems := errors.duplicate()
 	problems.append_array(validate(catalog))
-	if not mission.get("unit_templates") is Dictionary:
-		problems.append("greyport.json.unit_templates: expected object")
-	else:
-		for key in ["squad", "enemy"]:
-			if not catalog.units.has(mission.unit_templates.get(key, "")):
-				problems.append("greyport.json.unit_templates.%s: unknown unit" % key)
+	problems.append_array(validate_scenes(scenes))
 	if not catalog.units.has(study.get("unit", "")):
 		problems.append("tactical_study.json.unit: unknown unit")
 	if not study.get("force_choices") is Array or study.force_choices.is_empty():
@@ -68,7 +63,7 @@ static func ensure_valid(tree: SceneTree) -> bool:
 				if not catalog[pair[1]].has(id): problems.append("tactical_study.json.%s: unknown %s" % [pair[0], id])
 	if fields(study.get("target"), {"radius_m":"positive", "height_m":"positive", "aim_heights_m":"array"}, "tactical_study.target", problems):
 		for h in study.target.aim_heights_m: fields({"height":h}, {"height":"positive"}, "tactical_study.target.aim_heights_m", problems)
-	validate_range(study.get("range"), problems)
+	validate_range_controls(study.get("range"), problems)
 	if problems.is_empty():
 		var initial: Dictionary = catalog.units[study.unit]
 		if not initial.character in study.character_choices or not initial.weapon in study.weapon_choices:
@@ -90,6 +85,7 @@ static func fields(value, schema: Dictionary, path: String, problems: PackedStri
 		var kind: String = schema[key]
 		var valid := false
 		match kind:
+			"bool": valid = v is bool
 			"color": valid = v is String and Color.html_is_valid(v)
 			"string": valid = v is String and not v.is_empty()
 			"dict": valid = v is Dictionary
@@ -98,6 +94,7 @@ static func fields(value, schema: Dictionary, path: String, problems: PackedStri
 			_:
 				if (v is int or v is float) and is_finite(float(v)):
 					match kind:
+						"number": valid = true
 						"positive": valid = v > 0
 						"nonnegative": valid = v >= 0
 						"integer": valid = v > 0 and v == floor(v)
@@ -109,7 +106,7 @@ static func fields(value, schema: Dictionary, path: String, problems: PackedStri
 
 static func validate(c: Dictionary) -> PackedStringArray:
 	var p: PackedStringArray = []
-	if not fields(c, {"weapons":"dict", "ammunition":"dict", "attachments":"dict", "characters":"dict", "bodies":"dict", "presentation":"dict", "units":"dict", "skills":"dict", "attribute_sources":"dict", "ability_rules":"dict", "items":"dict", "loot_kinds":"dict"}, "catalog", p): return p
+	if not fields(c, {"weapons":"dict", "ammunition":"dict", "attachments":"dict", "characters":"dict", "bodies":"dict", "presentation":"dict", "units":"dict", "skills":"dict", "attribute_sources":"dict", "ability_rules":"dict", "equipment":"dict", "items":"dict", "loot_kinds":"dict"}, "catalog", p): return p
 	if not fields(c.presentation, {"weapons":"dict", "characters":"dict", "tracers":"dict"}, "presentation", p): return p
 	for id in c.presentation.tracers:
 		fields(c.presentation.tracers[id], {"length_m":"positive", "brightness":"unit", "fade_seconds":"positive"}, "presentation.tracers." + id, p)
@@ -144,24 +141,33 @@ static func validate(c: Dictionary) -> PackedStringArray:
 			validate_pair(v.accuracy_multiplier, "attachments." + id + ".accuracy_multiplier", p, 10.0)
 	for id in c.ammunition:
 		var a = c.ammunition[id]
-		if not fields(a, {"name":"string", "mass":"nonnegative", "speed_mps":"positive", "damage":"nonnegative", "tracer_every_n_shots":"integer", "tracer_presentation":"string", "accuracy_degrees":"array"}, "ammunition." + id, p): continue
+		if not fields(a, {"name":"string", "mass":"nonnegative", "speed_mps":"positive", "damage":"nonnegative", "penetration":"nonnegative", "tracer_every_n_shots":"integer", "tracer_presentation":"string", "accuracy_degrees":"array"}, "ammunition." + id, p): continue
 		validate_pair(a.accuracy_degrees, "ammunition." + id + ".accuracy_degrees", p, 45.0)
 		if not c.presentation.tracers.has(a.tracer_presentation): p.append("ammunition." + id + ": unknown tracer presentation")
 		if not c.loot_kinds.has(id): p.append("ammunition." + id + ": missing loot definition")
 	for id in c.weapons:
 		var w = c.weapons[id]
-		if not fields(w, {"item":"dict", "ammunition":"string", "presentation":"string", "category":"string", "muzzle_velocity_multiplier":"positive", "fire_interval":"positive", "magazine_size":"integer", "reload_time":"positive", "range":"positive", "gunshot_radius":"positive", "accuracy_degrees":"array", "attachments":"list", "recoil":"dict"}, "weapons." + id, p): continue
-		validate_pair(w.accuracy_degrees, "weapons." + id + ".accuracy_degrees", p, 45.0)
+		var path: String = "weapons."+id
+		if not fields(w,{"item":"dict","attack_category":"string","category":"string","range":"positive","fire_interval":"positive","accuracy_degrees":"array","attachments":"list"},path,p): continue
+		fields(w.item,{"id":"string","name":"string","mass":"nonnegative"},path+".item",p)
+		if w.item.get("id")!=id: p.append(path+": item ID mismatch")
+		validate_pair(w.accuracy_degrees,path+".accuracy_degrees",p,45)
 		for attachment in w.attachments:
-			if not attachment is String or not c.attachments.has(attachment): p.append("weapons." + id + ": unknown attachment")
-		if fields(w.recoil, {"impulse_degrees_per_second":"array", "max_offset_degrees":"array", "support_frequency":"positive"}, "weapons." + id + ".recoil", p):
-			for key in ["impulse_degrees_per_second", "max_offset_degrees"]:
-				validate_pair(w.recoil[key], "weapons." + id + ".recoil." + key, p, 1000.0 if key=="impulse_degrees_per_second" else 89.0)
-		fields(w.item, {"id":"string", "name":"string", "mass":"nonnegative"}, "weapons." + id + ".item", p)
-		if w.item.get("id") != id: p.append("weapons." + id + ": item ID must match definition key")
-		if not c.ammunition.has(w.ammunition): p.append("weapons." + id + ": unknown ammunition")
-		if not c.presentation.weapons.has(w.presentation): p.append("weapons." + id + ": unknown presentation")
-		if not c.items.has(id) or not c.loot_kinds.has(id): p.append("weapons." + id + ": missing item/loot definition")
+			if not c.attachments.has(attachment): p.append(path+": unknown attachment")
+		match w.attack_category:
+			"kinetic":
+				if not fields(w,{"ammunition":"string","presentation":"string","muzzle_velocity_multiplier":"positive","magazine_size":"integer","reload_time":"positive","gunshot_radius":"positive","recoil":"dict"},path,p): continue
+				if not c.ammunition.has(w.ammunition) or not c.presentation.weapons.has(w.presentation): p.append(path+": unknown ammo/presentation")
+				if fields(w.recoil,{"impulse_degrees_per_second":"array","max_offset_degrees":"array","support_frequency":"positive"},path+".recoil",p):
+					for key in ["impulse_degrees_per_second","max_offset_degrees"]: validate_pair(w.recoil[key],path+".recoil."+key,p,1000 if key=="impulse_degrees_per_second" else 89)
+			"thermal":
+				fields(w,{"damage":"nonnegative","penetration":"nonnegative","startup_seconds":"nonnegative","startup_energy_per_second":"nonnegative","attack_energy":"positive","attack_heat":"nonnegative","energy_capacity":"positive","cooling_per_second":"nonnegative","overheat_threshold":"positive","battery_replace_seconds":"positive","radiator_replace_seconds":"positive","charge_per_second":"positive"},path,p)
+				if w.has("ammunition"): p.append(path+": thermal weapons do not use ammunition")
+			"melee":
+				fields(w,{"damage":"nonnegative","penetration":"nonnegative","preparation_seconds":"nonnegative","active_seconds":"positive","recovery_seconds":"nonnegative"},path,p)
+				if not is_equal_approx(w.fire_interval,w.preparation_seconds+w.active_seconds+w.recovery_seconds): p.append(path+": inconsistent melee timing")
+			_: p.append(path+": unknown attack category")
+	p.append_array(SCEquipment.validate(c.get("equipment",{})))
 	for id in c.bodies:
 		validate_body(c.bodies[id], "bodies." + id, p)
 	validate_ability_rules(c, p)
@@ -336,33 +342,57 @@ static func coordinates(value, size: int, path: String, problems: PackedStringAr
 	return true
 
 
-static func validate_range(value, problems: PackedStringArray):
-	if not fields(value, {"bounds_m":"array", "lanes":"array", "targets":"array", "obstacles":"list", "impact_lifetime_seconds":"positive", "maximum_impacts":"integer"}, "tactical_study.range", problems): return
-	if not coordinates(value.bounds_m, 4, "range.bounds_m", problems): return
-	var b: Array = value.bounds_m
-	var bounds := Rect2(b[0], b[1], b[2], b[3])
-	if b[2] != 28.8 or b[3] != 10.0: problems.append("range.bounds_m: the 40 px/m stage is 28.8 x 10 meters")
-	var ids := {}
-	for spec in value.targets:
-		if not fields(spec, {"id":"string", "label":"string", "position_m":"array"}, "range.targets", problems): continue
-		if ids.has(spec.id): problems.append("range.targets: duplicate ID")
-		ids[spec.id] = true
-		if coordinates(spec.position_m, 2, "range.targets.position_m", problems):
-			if not bounds.has_point(Vector2(spec.position_m[0], spec.position_m[1])): problems.append("range.targets: out of bounds")
-	if value.lanes.size() != 8: problems.append("range.lanes: expected eight selector lanes")
-	for spec in value.lanes:
-		if not fields(spec, {"label":"string", "spawn_m":"array", "target":"string"}, "range.lanes", problems): continue
-		if not ids.has(spec.target): problems.append("range.lanes: unknown target")
-		if coordinates(spec.spawn_m, 2, "range.lanes.spawn_m", problems):
-			if not bounds.has_point(Vector2(spec.spawn_m[0], spec.spawn_m[1])): problems.append("range.lanes: out of bounds")
-	ids.clear()
-	for spec in value.obstacles:
-		if not fields(spec, {"id":"string", "label":"string", "kind":"string", "rect_m":"array", "height_m":"positive"}, "range.obstacles", problems): continue
-		if ids.has(spec.id) or not spec.kind in ["cover", "wall"]: problems.append("range.obstacles: invalid ID or kind")
-		ids[spec.id] = true
-		if coordinates(spec.rect_m, 4, "range.obstacles.rect_m", problems):
-			var v: Array = spec.rect_m
-			if v[2] <= 0 or v[3] <= 0 or not bounds.encloses(Rect2(v[0], v[1], v[2], v[3])): problems.append("range.obstacles: invalid extent")
+
+static func validate_range_controls(r, p: PackedStringArray):
+	if not fields(r,{"lanes":"array","impact_lifetime_seconds":"positive","maximum_impacts":"integer"},"range",p): return
+	for lane in r.lanes:
+		if fields(lane,{"label":"string","spawn_m":"array","target":"string"},"range.lanes",p):
+			coordinates(lane.spawn_m,2,"range.lanes.spawn_m",p)
+			if not scenes.range.entities.any(func(e): return e.id==lane.target and e.get("kind")=="target"): p.append("range.lanes: unknown target")
+
+static func validate_scenes(doc: Dictionary) -> PackedStringArray:
+	var p: PackedStringArray = []
+	for name in doc:
+		var spec = doc[name]
+		if not fields(spec,{"bounds_m":"array","terrain":"dict","seed":"count","cells":"list","edges":"list","entities":"list","actors":"list","zones":"dict"},"scenes."+name,p): continue
+		coordinates(spec.bounds_m,4,"scenes."+name+".bounds_m",p)
+		if spec.bounds_m.size()!=4: continue
+		if spec.bounds_m[2]<=0 or spec.bounds_m[3]<=0: p.append("scenes."+name+": invalid bounds")
+		fields(spec.terrain,{"passable":"bool","movement_multiplier":"positive","ground_height_m":"number","cover_height_m":"nonnegative","blocks_sight":"bool","blocks_projectile":"bool"},"scenes."+name+".terrain",p)
+		var ids := {}
+		for entity in spec.entities:
+			if not fields(entity,{"id":"string","label":"string","classification":"string","position_m":"array","footprint_m":"array","bottom_m":"nonnegative","height_m":"positive","blocks_movement":"bool","blocks_sight":"bool","blocks_projectile":"bool"},"scenes."+name+".entity",p): continue
+			if entity.classification not in ["fixed","dropped"] or ids.has(entity.id): p.append("scenes."+name+": invalid entity classification or duplicate ID")
+			ids[entity.id]=true
+			coordinates(entity.position_m,2,"scene.entity.position_m",p)
+			coordinates(entity.footprint_m,2,"scene.entity.footprint_m",p)
+			if entity.footprint_m.any(func(v): return v<=0): p.append("scene.entity: invalid footprint")
+			if entity.has("door"):
+				fields(entity.door,{"placement":"string","state":"string","opening_seconds":"positive","closing_seconds":"positive","opening_height_m":"positive","locked":"bool","powered":"bool","faulted":"bool"},"scene.door",p)
+				if entity.door.placement not in ["edge","cell"] or entity.classification!="fixed": p.append("scene.door: invalid placement")
+				if entity.door.state not in ["open","closed"]: p.append("scene.door: invalid initial state")
+				if entity.door.opening_height_m>entity.height_m: p.append("scene.door: opening exceeds frame height")
+				if entity.door.placement=="edge":
+					if not entity.get("edge_cell") is Array or entity.edge_cell.size()!=2 or entity.get("edge_direction","") not in SCGrid.DIRS: p.append("scene.door: invalid edge location")
+		for entry in spec.cells:
+			if not entry.get("cell") is Array: p.append("scene.cells: missing coordinate"); continue
+			coordinates(entry.cell,2,"scene.cells.cell",p)
+			if entry.has("movement_multiplier"): fields(entry,{"movement_multiplier":"positive"},"scene.cells",p)
+			if entry.has("cover_height_m"): fields(entry,{"cover_height_m":"nonnegative"},"scene.cells",p)
+			if entry.has("ground_height_m"): fields(entry,{"ground_height_m":"number"},"scene.cells",p)
+			if entry.has("passable"): fields(entry,{"passable":"bool"},"scene.cells",p)
+		for entry in spec.edges:
+			if fields(entry,{"cell":"array","direction":"string","height_m":"nonnegative","blocks_movement":"bool","blocks_sight":"bool","blocks_projectile":"bool"},"scene.edges",p):
+				coordinates(entry.cell,2,"scene.edges.cell",p)
+				if entry.direction not in SCGrid.DIRS: p.append("scene.edges: invalid direction")
+		var actors := {}
+		for character in spec.actors:
+			if not fields(character,{"id":"number","label":"string","team":"string","position_m":"array","facing_radians":"number","unit":"string"},"scene.actor",p): continue
+			coordinates(character.position_m,2,"scene.actor.position_m",p)
+			if actors.has(character.id): p.append("scene.actor: duplicate actor")
+			actors[character.id]=true
+			if not catalog.units.has(character.get("unit","")): p.append("scene.actor: unknown unit")
+	return p
 
 
 static func validate_body(b, path: String, p: PackedStringArray):
@@ -427,21 +457,17 @@ static func cell_less(a: Vector2i, b: Vector2i) -> bool:
 
 static func use_for(item: String) -> Dictionary:
 	var use: Dictionary = catalog.items[item].uses[0].duplicate(true)
-	if catalog.weapons.has(item): use.duration = catalog.weapons[item].reload_time
+	if catalog.weapons.has(item) and catalog.weapons[item].attack_category=="kinetic": use.duration = catalog.weapons[item].reload_time
 	return use
 
 
 static func weapon(kind: String = "rifle", ammo: int = -1, reserve: int = 90) -> Dictionary:
-	var spec = catalog.weapons[kind]
-	var state := {
-		"definition": spec.duplicate(true),
-		"ammunition": catalog.ammunition[spec.ammunition].duplicate(true),
-		"ammo": int(spec.magazine_size) if ammo < 0 else ammo,
-		"reserve_ammo": reserve,
-		"cooldown": 0.0,
-		"recoil_offset_degrees": Vector2.ZERO,
-		"shots_fired": 0
-	}
+	var spec: Dictionary = catalog.weapons[kind]
+	var state := {"definition":spec.duplicate(true),"cooldown":0.0,"recoil_offset_degrees":Vector2.ZERO,"shots_fired":0,"trigger_held":false,"startup_elapsed":0.0,"heat":0.0,"energy":float(spec.get("energy_capacity",0)),"radiator_failed":false,"action":{}}
+	if spec.attack_category=="kinetic":
+		state["ammunition"]=catalog.ammunition[spec.ammunition].duplicate(true)
+		state["ammo"]=int(spec.magazine_size) if ammo<0 else ammo
+		state["reserve_ammo"]=reserve
 	SCCombat.reset_recoil(state)
 	return state
 

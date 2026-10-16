@@ -31,13 +31,13 @@ func item(kind: String, quantity: int = 1, ammo: int = 30) -> Dictionary:
 
 static func item_name(i: Dictionary) -> String:
 	var label = SCData.catalog.loot_kinds[i.kind][0]
-	return label + (" · 弹匣 %d" % i.weapon.ammo if i.weapon != null else "")
+	return label + (" · 弹匣 %d" % i.weapon.ammo if i.weapon != null and i.weapon.definition.attack_category=="kinetic" else "")
 
 
 static func item_weight(i: Dictionary) -> float:
 	return (
 		SCData.catalog.loot_kinds[i.kind][1] * i.quantity
-		+ (i.weapon.ammunition.mass * (i.weapon.ammo + i.weapon.reserve_ammo) if i.weapon != null else 0.0)
+		+ (i.weapon.ammunition.mass * (i.weapon.ammo + i.weapon.reserve_ammo) if i.weapon != null and i.weapon.definition.attack_category=="kinetic" else 0.0)
 	)
 
 
@@ -64,6 +64,10 @@ func add(
 	}
 	for i in items:
 		obj.items[i.id] = i
+	if not world.entities.has(id):
+		world.entities[id]=SCEntity.new({"id":id,"label":label,"classification":"fixed" if kind in ["container","case"] else "dropped","position_m":[cell.x+.5,cell.y+.5],"footprint_m":[.4,.4],"bottom_m":0.0,"height_m":.3,"blocks_movement":kind in ["container","case"],"blocks_sight":false,"blocks_projectile":false})
+	obj["entity"]=world.entities[id]
+	obj.entity.contents=obj.items
 	objects[id] = obj
 	if discovered and obj.searched:
 		remember(obj)
@@ -77,7 +81,8 @@ func remember(obj: Dictionary):
 
 func refresh():
 	for obj in objects.values():
-		var center = SCData.center(obj.cell)
+		obj.cell=SCData.cell_of(obj.entity.position)
+		var center: Vector2 = obj.entity.position
 		var points = [center]
 		if obj.kind == "container":
 			for delta in SCGrid.DIRS.values():
@@ -96,7 +101,8 @@ func refresh():
 
 
 func weight(a) -> float:
-	var result = a.weapon.definition.item.mass + a.weapon.ammunition.mass * (a.weapon.ammo + a.weapon.reserve_ammo)
+	var result = a.weapon.definition.item.mass + SCEquipment.mass(a)
+	if a.weapon.definition.attack_category=="kinetic": result+=a.weapon.ammunition.mass*(a.weapon.ammo+a.weapon.reserve_ammo)
 	for kind in a.quantities:
 		if SCData.catalog.loot_kinds.has(kind):
 			result += SCData.catalog.loot_kinds[kind][1] * a.quantities[kind]
@@ -449,7 +455,7 @@ func complete_action(a, action: Dictionary) -> String:
 		obj.items.erase(action.cargo_id)
 		if i.kind in ["flashbang", "bandage"]:
 			a.quantities[i.kind] = a.quantities.get(i.kind, 0) + i.quantity
-		elif i.kind == a.weapon.definition.ammunition:
+		elif a.weapon.definition.attack_category=="kinetic" and i.kind == a.weapon.definition.ammunition:
 			a.weapon.reserve_ammo += i.quantity
 		else:
 			a.cargo[i.id] = i
@@ -457,6 +463,7 @@ func complete_action(a, action: Dictionary) -> String:
 		remember(obj)
 		world.message("%s 已拿取 %s ×%d" % [a.actor_name, item_name(i), i.quantity])
 		if obj.kind == "ground" and obj.items.is_empty():
+			obj.entity.exists=false
 			objects.erase(obj.id)
 	elif action.type == "drop_item":
 		var i = remove_carried(a, action.cargo_id)
@@ -630,62 +637,17 @@ func tick_task(t: Dictionary, dt: float):
 
 
 func corpse(a):
-	var id = "corpse:%d" % a.id
-	if objects.has(id):
-		return
-	var g = world.grid
-	var anchor = a.death_anchor if a.death_anchor != null else SCData.cell_of(a.position)
-	if not g.walkable(anchor):
-		var cells = g.zone_cells.keys().filter(func(c): return g.walkable(c))
-		cells.sort_custom(
-			func(c, d):
-				var dc = SCData.center(c).distance_to(a.position)
-				var dd = SCData.center(d).distance_to(a.position)
-				return dc < dd or dc == dd and SCData.cell_less(c, d)
-		)
-		anchor = cells[0]
-	var occupied = {}
-	for obj in objects.values():
-		if obj.kind == "corpse":
-			occupied[obj.cell] = true
-	var frontier = []
-	var distances = {anchor: 0.0}
-	var choices = []
-	SCGrid.heap_push(frontier, [0.0, anchor.y, anchor.x, 0, anchor])
-	while not frontier.is_empty():
-		var entry = SCGrid.heap_pop(frontier)
-		var c = entry[4]
-		var cost = entry[0]
-		if cost > distances[c] + 0.000000001:
-			continue
-		if not occupied.has(c):
-			choices.append(entry)
-		for next in g.neighbors(c):
-			var distance = cost + Vector2(c).distance_to(Vector2(next))
-			if distance <= 2.0 + 0.000000001 and distance < distances.get(next, INF) - 0.000000001:
-				distances[next] = distance
-				SCGrid.heap_push(frontier, [distance, next.y, next.x, 0, next])
-	choices.sort_custom(SCGrid.heap_less)
-	var cell = anchor if choices.is_empty() else choices[0][4]
-	var items = a.cargo.values()
-	a.cargo.clear()
-	var gun = a.weapon
-	var reserve = int(gun.reserve_ammo)
-	gun.reserve_ammo = 0
-	items.append(
-		{"id": a.equipped_id, "kind": gun.definition.item.id, "quantity": 1, "weapon": gun}
-	)
-	a.equipped_id = ""
-	if reserve > 0:
-		items.append(item(gun.definition.ammunition, reserve))
+	var id := "corpse:%d" % a.id
+	if objects.has(id): return
+	# The original entity, location, body, and equipment survive death.
+	var body: SCEntity = world.entities[a.identity]
+	var items: Array = a.cargo.values()
+	items.append({"id":a.equipped_id,"kind":a.weapon.definition.item.id,"quantity":1,"weapon":a.weapon})
 	for kind in a.quantities:
-		if a.quantities[kind] > 0:
-			items.append(item(kind, a.quantities[kind]))
-	a.quantities.clear()
-	a.reservations.clear()
-	a.weapon = SCData.weapon(gun.definition.item.id, 0, 0)
-	a.position = SCData.center(cell)
-	add(id, a.actor_name + "的尸体", "corpse", cell, items, a.team == "red")
-	g.terrain_speed[cell] = 0.6
-	g.revision += 1
-	g.path_cache.clear()
+		if a.quantities[kind]>0: items.append(item(kind,a.quantities[kind]))
+	if a.weapon.definition.attack_category=="kinetic" and a.weapon.reserve_ammo>0:
+		items.append(item(a.weapon.definition.ammunition,int(a.weapon.reserve_ammo)))
+	var obj := add(id,a.actor_name+"的尸体","corpse",SCData.cell_of(a.position),items,a.team=="red")
+	world.entities.erase(id)
+	obj.entity=body
+	body.contents=obj.items

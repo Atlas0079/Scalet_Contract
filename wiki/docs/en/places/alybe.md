@@ -35,6 +35,6 @@ Homes, offices, and stations still bear traces of pre-disaster life; some produc
 
 Scarlet controls the orbital weapons and a small number of networked facilities; her forces are insufficient to occupy the whole city, and the mines and factories still depend on residents working. She temporarily keeps some districts where people work and deals with company executives to maintain production and delay outside intervention.
 
-The Blue Sleeves, the Sole Democratic Party, and other large groups can maintain guards, fuel, repairs, and transport, run their own requisition, rationing, and recruitment systems in the areas they control, and are still drawing down pre-disaster stockpiles; fighting continues over the roads between strongholds and scattered districts.
+The Blue Sleeves, the Sole Democratic Party, and other large groups can maintain guards, fuel, repairs, and transport, are still drawing down pre-disaster stockpiles; fighting continues over the roads between strongholds and scattered districts.
 
 The orbital blockade makes evacuation dependent on small spacecraft: companies hire crews to take out employees and recover assets; Neo Earth Joint Academy funds supplies and hires mercenaries to evacuate civilians; the remaining residents arrange their own transport or seek acceptance by large groups.

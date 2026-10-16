@@ -232,6 +232,12 @@ static func evaluate(actor, explain := false) -> Dictionary:
 	values.view_angle_rad = clampf(values.view_angle_rad,0,TAU)
 	values["move_angle_curve"] = actor.definition.movement_angle_curve.duplicate(true)
 	values.merge(parameters.aim.duplicate(true))
+	var equipment_movement := SCEquipment.movement_factor(actor)
+	var equipment_operation := SCEquipment.operation_factor(actor)
+	values.move_speed_mps*=equipment_movement
+	values.acceleration_mps2*=equipment_movement
+	values.turn_speed_radps*=equipment_operation
+	for key in ["manipulation_rate","reload_rate","treatment_rate","repair_rate","hacking_rate"]: values[key]*=equipment_operation
 	var enabled: bool = actor.alive and actor.stunned <= 0 and not controller.is_empty() and controller.active
 	if actor.control_mode == "sia": enabled = enabled and actor.control.get("connected",false) and sync>0 and actor.control.get("quality",0.0)>0
 	var permissions := {"can_move":enabled and f_move>0 and values.move_speed_mps>0,

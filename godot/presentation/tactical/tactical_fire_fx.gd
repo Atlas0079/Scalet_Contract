@@ -20,6 +20,8 @@ var last_impact := "尚未射击"
 var total_blocked := 0
 var last_hit_height := -1.0
 var reticle := {"valid": false}
+var simulation: SCWorld
+var authoritative := true
 var weapon_state: Dictionary
 var total_hits := 0
 var tracer_every: int
@@ -49,6 +51,7 @@ class View extends Node2D:
 			else: effects.draw_air(self, origin, pixels_per_cell)
 
 func _init(weapon: Dictionary):
+	simulation=SCWorld.new("range",true)
 	configure(weapon)
 	build_range()
 
@@ -67,13 +70,20 @@ func configure(weapon: Dictionary):
 func build_range():
 	targets.clear()
 	obstacles.clear()
-	for spec in SCData.study.range.targets:
-		targets.append({"id":spec.id, "label":spec.label, "position":SCCombat.pair(spec.position_m),
-			"radius":float(SCData.study.target.radius_m), "height":float(SCData.study.target.height_m), "hits":0})
-	for spec in SCData.study.range.obstacles:
-		var box: Array = spec.rect_m
-		obstacles.append({"id":spec.id, "label":spec.label, "kind":spec.kind,
-			"rect":Rect2(box[0], box[1], box[2], box[3]), "height":float(spec.height_m)})
+	# Standalone visual checks still use the current range scene data.
+	for spec in SCData.scenes.range.entities:
+		if spec.get("kind","")=="target":
+			targets.append({"id":spec.id,"label":spec.label,"position":SCCombat.pair(spec.position_m),"radius":spec.radius_m,"height":spec.height_m,"hits":0})
+		else:
+			var size := SCCombat.pair(spec.footprint_m)
+			obstacles.append({"id":spec.id,"label":spec.label,"kind":"wall" if spec.height_m>2 else "cover","rect":Rect2(SCCombat.pair(spec.position_m)-size*.5,size),"height":spec.height_m})
+
+func bind_world(value: SCWorld, primary: bool):
+	simulation=value
+	authoritative=primary
+	for entry in targets:
+		entry["entity"]=simulation.entities[entry.id]
+
 
 func target_by_id(id: String) -> Dictionary:
 	for entry in targets:
@@ -81,6 +91,9 @@ func target_by_id(id: String) -> Dictionary:
 	return {}
 
 func obstacle_hit(start: Vector3, end: Vector3) -> Dictionary:
+	if simulation:
+		var hit := simulation.grid.raycast(Vector2(start.x,start.z),Vector2(end.x,end.z),start.y,end.y,"projectile",true)
+		return {"fraction":hit[0],"id":hit[1].get("id","terrain") if hit[1]!=null else "","label":hit[1].get("label","地形") if hit[1]!=null else ""}
 	var result := {"fraction": 1.0, "id": "", "label": ""}
 	for obstacle in obstacles:
 		var rect: Rect2 = obstacle.rect
@@ -176,6 +189,7 @@ func emit_shot(socket: Vector3, port: Vector3, direction_3d: Vector3, right: Vec
 	if paper_aim != null: prepare_paper(bullet,paper_aim)
 	advance_bullet(bullet, elapsed_since_shot)
 	if bullet.afterglow < tracer_settings.fade_seconds: bullets.append(bullet)
+	if authoritative: simulation.shots=bullets
 	if bullets.size() > 128: bullets.pop_front()
 	var flash := {"age": elapsed_since_shot, "scale": rng.randf_range(0.85, 1.2), "skew": rng.randf_range(-0.16, 0.16)}
 	if flash.age < flash_settings.life_seconds: flashes.append(flash)
@@ -232,60 +246,22 @@ func advance_bullets(delta: float):
 	impacts = impacts.filter(func(i): return i.age < 0.18)
 	for bullet in bullets: advance_bullet(bullet, delta)
 	bullets = bullets.filter(func(b): return b.afterglow < tracer_settings.fade_seconds)
+	if authoritative: simulation.shots=bullets
 
 func advance_bullet(bullet: Dictionary, delta: float):
-	bullet.age += delta
-	if bullet.finished:
-		bullet.afterglow += delta
-		return
-	var distance := minf(bullet.speed * delta, bullet.range - bullet.travelled)
-	var start: Vector2 = bullet.end
-	var end: Vector2 = start + bullet.direction * bullet.horizontal_factor * distance
-	var h0: float = bullet.height
-	var h1: float = h0 + bullet.direction_3d.y * distance
-	var best := 1.0
-	var blocked := false
-	var ground := SCCombat.ground_fraction(h0, h1)
-	if ground >= 0.0:
-		best = ground
-		blocked = true
-	var obstacle := obstacle_hit(Vector3(start.x, h0, start.y), Vector3(end.x, h1, end.y))
-	var hit_label := "地面" if blocked else ""
-	if not obstacle.id.is_empty() and obstacle.fraction <= best:
-		best = obstacle.fraction
-		blocked = true
-		hit_label = obstacle.label
-	var hit_target: Dictionary = {}
-	for entry in targets:
-		var t := SCCombat.cylinder_hit_fraction(start, end, h0, h1, entry.position, entry.position, entry.radius, 0.0, entry.height)
-		if t >= 0.0 and (t < best or not blocked and t <= best):
-			best = t
-			blocked = false
-			hit_target = entry
-	if not hit_target.is_empty():
-		total_hits += 1
-		hit_target.hits += 1
-		last_hit_height = lerpf(h0, h1, best)
-		hit_label = hit_target.label
-		bullet["hit_target_id"] = hit_target.id
-	if not hit_target.is_empty() or blocked:
-		bullet.finished = true
-		bullet.blocked = blocked
-		bullet["stop_label"] = hit_label+"截停"
-		if blocked: total_blocked += 1
-		var height := lerpf(h0, h1, best)
-		last_impact = "%s · 弹高 %.2f m" % [hit_label, height]
-		var impact_age := maxf(0.0, delta - distance * best / bullet.speed)
-		var at := start.lerp(end, best)
-		if impact_age < 0.18: impacts.append({"p": at, "age": impact_age})
-		hit_marks.append({"p":at, "height":height, "blocked":blocked, "age":impact_age})
-		if hit_marks.size() > int(SCData.study.range.maximum_impacts): hit_marks.pop_front()
-	bullet.travelled += distance * best
-	bullet.end = start.lerp(end, best)
-	bullet.height = lerpf(h0, h1, best)
-	if bullet.travelled >= bullet.range - 0.00001: bullet.finished = true
+	var result := SCCombat.advance_training_shot(bullet,delta,simulation.grid,targets)
+	if not result.is_empty():
+		if not result.target.is_empty():
+			total_hits+=1
+			result.target.hits+=1
+			if authoritative and result.target.has("entity"): result.target.entity.hits+=1
+			last_hit_height=result.height
+		if result.blocked: total_blocked+=1
+		last_impact="%s · 弹高 %.2f m" % [result.label,result.height]
+		if result.age<.18: impacts.append({"p":result.position,"age":result.age})
+		hit_marks.append({"p":result.position,"height":result.height,"blocked":result.blocked,"age":result.age})
+		if hit_marks.size()>int(SCData.study.range.maximum_impacts): hit_marks.pop_front()
 	settle_paper(bullet)
-	if bullet.finished: bullet.afterglow += maxf(0.0, delta - distance * best / bullet.speed)
 
 func point(world: Vector2, origin: Vector2, scale: float) -> Vector2:
 	# Preserve the same pixel-sized marks in the enlarged inspection views.

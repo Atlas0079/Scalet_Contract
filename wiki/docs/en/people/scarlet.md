@@ -22,7 +22,7 @@ Scarlet was developed and delivered together with the first phase of Alybe's con
 
 Scarlet wants to experience human life and become Eureka's wife. When Eureka fled, she disabled the cargo ship's propulsion, trying to keep him on-site; the ensuing power failure caused his amnesia, and he remained frozen on the surface for about 43 years. Scarlet continued to evolve, still envisioning their life together according to his wishes from those days.
 
-On December 31, 1999, through an anonymous intermediary, Scarlet arranged for Relay Defense to purchase Eureka, funded his revival, and sent him to the satellite.
+In November 1999, through an anonymous intermediary, Scarlet arranged for Relay Defense to purchase Eureka, funded his revival, and sent him to the satellite.
 
 ## The Purge and Screening
 
@@ -33,8 +33,6 @@ She plans to spare a minority of the obedient, controlling the new generation's 
 ## Current control
 
 On January 31, 2000 (30 days after the Blackout), the Purge is still underway. Scarlet's forces are insufficient to occupy the whole city, and the mining districts and factories still depend on residents working. She temporarily keeps some districts where people work and trades with company executives, to keep production going and delay outside intervention.
-
-Most members of the Untold hide deep in the city, and she attacks them less. A few members lie low within other groups, gathering personnel and operational intelligence for her. Believers regard this favorable treatment as the right to be spared. Scarlet still screens the population by her own standards.
 
 ## Cot weapons development
 

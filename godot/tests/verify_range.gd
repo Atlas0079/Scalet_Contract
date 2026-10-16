@@ -63,7 +63,8 @@ func verify():
 	check(stopped.x < 21 - scene.character.radius and stopped.x > 20.5, "Character passed wall")
 	var slid: Vector2 = scene.move_in_range(stopped, Vector2(1,0.25))
 	check(absf(slid.y - stopped.y - 0.25) < 0.0001 and slid.x < 20.7, "Wall slide stuck")
-	check(scene.move_in_range(Vector2(18,3.6), Vector2(6,0)).distance_to(Vector2(24,3.6)) < 0.0001, "Character cannot pass gap")
+	var through_gap: Vector2 = scene.move_in_range(Vector2(18,3.6),Vector2(6,0))
+	check(through_gap.x>23 and through_gap.x<24,"Gap traversal must stop at the target entity")
 	check(scene.move_in_range(Vector2(18,-3.6), Vector2(6,0)).x < 20.7, "Character passed low cover")
 	for i in range(2):
 		check(scene.shadows[i].texture == scene.sprites[i].texture, "Shadow texture differs from current animated sprite")
@@ -79,7 +80,7 @@ func verify():
 	var problems := PackedStringArray()
 	var broken: Dictionary = SCData.study.range.duplicate(true)
 	broken.lanes[0].target = "missing"
-	SCData.validate_range(broken, problems)
+	SCData.validate_range_controls(broken, problems)
 	check(not problems.is_empty(), "Invalid target reference accepted")
 	scene.queue_free()
 	await process_frame

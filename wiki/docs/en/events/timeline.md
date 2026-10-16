@@ -55,7 +55,7 @@ The Blackout occurred on January 1, 2000. The game begins 30 days after the Blac
 <p>After the mining and maintenance areas shut down, the companies and the residents' representatives reached an agreement to resume work. Formerly unregistered laborers and their families gained resident status. Residents' self-governance bodies were established.</p>
 </li>
 <li class="wiki-timeline-private">
-<div class="wiki-timeline-date">December 31, 1999<span class="wiki-timeline-badge wiki-timeline-badge-private">Not public</span></div>
+<div class="wiki-timeline-date">November 1999<span class="wiki-timeline-badge wiki-timeline-badge-private">Not public</span></div>
 <h3>Eureka revives and enters the satellite</h3>
 <p>Through anonymous middlemen, Scarlet arranged for Relay Defense to purchase Eureka and funded his revival and transport. He was sent to an operations satellite, where he trained in remote command under the codename "Observer." The memory damage remained.</p>
 </li>

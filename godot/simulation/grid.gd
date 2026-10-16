@@ -13,6 +13,9 @@ const MOVE_DIRS = [
 	Vector2i(-1, 0),
 	Vector2i(-1, -1)
 ]
+var bounds := Rect2(0,0,48,36)
+var cells: Dictionary = {}
+var entities: Dictionary = {}
 var width: int = 48
 var height: int = 36
 var edge_features: Dictionary = {}
@@ -44,7 +47,7 @@ static func feature(
 
 
 func in_bounds(c: Vector2i) -> bool:
-	return c.x >= 0 and c.y >= 0 and c.x < width and c.y < height
+	return bounds.has_point(SCData.center(c))
 
 
 func zone_id(c):
@@ -52,7 +55,11 @@ func zone_id(c):
 
 
 func walkable(c) -> bool:
-	return c != null and in_bounds(c) and not cell_features.get(c, {}).get("blocks_movement", false)
+	if c == null or not in_bounds(c) or not cells.get(c,{"passable":true}).passable: return false
+	if cell_features.get(c, {}).get("blocks_movement", false): return false
+	for entity in entities.values():
+		if entity.actor == null and entity.blocks("movement") and entity.footprint().has_point(SCData.center(c)): return false
+	return true
 
 
 func edge_key(c: Vector2i, direction: String) -> String:
@@ -102,10 +109,9 @@ func can_move(a, b, known_doors = null, allow_doors: bool = false) -> bool:
 	if delta not in MOVE_DIRS:
 		return false
 	if delta.x != 0 and delta.y != 0:
-		for side in [Vector2i(b.x, a.y), Vector2i(a.x, b.y)]:
-			if walkable(side) and can_move(a, side, known_doors) and can_move(side, b, known_doors):
-				return true
-		return false
+		for side in [Vector2i(b.x,a.y),Vector2i(a.x,b.y)]:
+			if not walkable(side) or not can_move(a,side,known_doors) or not can_move(side,b,known_doors): return false
+		return true
 	var edge = edge_between(a, b)
 	if edge != null and edge.interactive_id != null and known_doors != null:
 		if known_doors.get(edge.interactive_id) not in ["open", "broken"]:
@@ -277,6 +283,17 @@ func ray_features(start: Vector2, end: Vector2) -> Array:
 		if f != null and not seen.has(f.id):
 			seen[f.id] = true
 			result.append([t, f])
+	for entity in entities.values():
+		if entity.actor!=null or not entity.exists or not entity.blocks("projectile"): continue
+		var box: AABB = entity.collision_box()
+		var h: float = box.position.y+box.size.y*.5
+		var hit: float = entity.ray_fraction(Vector3(start.x,h,start.y),Vector3(end.x,h,end.y))
+		if hit<0 or seen.has(entity.definition.id): continue
+		var kind: String = "door" if not entity.door.is_empty() else ("wall" if entity.definition.id.begins_with("wall_") else "entity")
+		var entity_feature := feature(kind,entity.height(),entity.blocks("movement"),entity.blocks("sight"),entity.blocks("projectile"),entity.definition.id if kind=="door" else null)
+		entity_feature.id=entity.definition.id
+		result.append([hit,entity_feature])
+	result.sort_custom(func(a,b): return a[0]<b[0])
 	return result
 
 
@@ -285,145 +302,121 @@ func raycast(
 	end: Vector2,
 	start_height: float = 1.65,
 	end_height: float = 1.65,
-	kind: String = "sight"
+	kind: String = "sight",
+	ignore_targets := false
 ) -> Array:
-	# Traverse in the same order as ray_features, but stop at the first collision.
-	# Sight rays usually hit a nearby wall; enumerating geometry beyond it dominates
-	# the cost of updating the four squad members' fields of view.
-	var delta = end - start
-	var c = SCData.cell_of(start)
-	var sx = 1 if delta.x >= 0 else -1
-	var sy = 1 if delta.y >= 0 else -1
-	var tx = ((c.x + 1 if sx > 0 else c.x) - start.x) / delta.x if delta.x != 0 else INF
-	var ty = ((c.y + 1 if sy > 0 else c.y) - start.y) / delta.y if delta.y != 0 else INF
-	var stepx = absf(1.0 / delta.x) if delta.x != 0 else INF
-	var stepy = absf(1.0 / delta.y) if delta.y != 0 else INF
-	var f = cell_features.get(c)
-	var entered := 0.0
-	while true:
-		# Test the whole interval inside this cell, including a descending ray
-		# that clears the front face but then hits the top of a low obstacle.
-		var leaving := minf(1.0, minf(tx, ty))
-		var hit := height_hit(f, start_height, end_height, entered, leaving, kind)
-		if hit >= 0.0: return [hit, f]
-		if minf(tx, ty) > 1.0: break
-		var t = maxf(0.0, minf(tx, ty))
-		var h = lerpf(start_height, end_height, t)
-		var crossx = tx <= ty + 0.0000000001
-		var crossy = ty <= tx + 0.0000000001
-		if crossx:
-			f = edge_at(c, "E" if sx > 0 else "W")
-			if ray_blocked(f, h, kind):
-				return [t, f]
-		if crossy:
-			f = edge_at(c, "S" if sy > 0 else "N")
-			if ray_blocked(f, h, kind):
-				return [t, f]
-		if crossx:
-			c.x += sx
-			tx += stepx
-		if crossy:
-			c.y += sy
-			ty += stepy
-		if not in_bounds(c):
-			break
-		f = cell_features.get(c)
-		entered = t
-	return [1.0, null]
+	var origin := Vector3(start.x,start_height,start.y)
+	var finish := Vector3(end.x,end_height,end.y)
+	var best := 1.0
+	var found = null
+	for cell in cells:
+		var spec: Dictionary = cells[cell]
+		if spec.cover_height_m <= 0 or not spec.get("blocks_"+kind,false): continue
+		var box := AABB(Vector3(cell.x,spec.ground_height_m,cell.y),Vector3(1,spec.cover_height_m,1))
+		var hit := SCCombat.box_hit_fraction(origin,finish,box)
+		if hit>=0 and hit<=best: best=hit; found=spec
+	for cell in cell_features:
+		var f: Dictionary = cell_features[cell]
+		if not f.get("blocks_"+kind,false): continue
+		var ground: float = cells.get(cell,{}).get("ground_height_m",0.0)
+		var hit := SCCombat.box_hit_fraction(origin,finish,AABB(Vector3(cell.x,ground,cell.y),Vector3(1,f.height,1)))
+		if hit>=0 and hit<=best: best=hit; found=f
+	var seen := {}
+	for f in edge_features.values():
+		if seen.has(f.id) or f.kind=="door" or not f.get("blocks_"+kind,false): continue
+		seen[f.id] = true
+		var rect := edge_rect(f.cell,f.direction)
+		var hit := SCCombat.box_hit_fraction(origin,finish,AABB(Vector3(rect.position.x,0,rect.position.y),Vector3(rect.size.x,f.height,rect.size.y)))
+		if hit>=0 and hit<=best: best=hit; found=f
+	for entity in entities.values():
+		if entity.actor != null or ignore_targets and entity.definition.get("kind","")=="target" or not entity.blocks("sight" if kind=="sight" else "projectile"): continue
+		var hit: float = entity.ray_fraction(origin,finish)
+		if hit>=0 and hit<=best: best=hit; found=entity.definition
+	return [best,found]
 
-
-static func height_hit(f, h0: float, h1: float, enter: float, leave: float, kind: String) -> float:
-	if f == null: return -1.0
-	if ray_blocked(f, lerpf(h0, h1, enter), kind): return enter
-	if kind == "flash": return -1.0
-	var blocks: bool = f.blocks_sight if kind == "sight" else f.blocks_projectile
-	if not blocks: return -1.0
-	var delta := h1 - h0
-	if delta < -0.00000001:
-		var top: float = (f.height - h0) / delta
-		if top >= enter and top <= leave: return top
-	if delta > 0.00000001 and f.kind == "window":
-		var lintel := (2.2 - h0) / delta
-		if lintel >= enter and lintel <= leave: return lintel
-	return -1.0
-
-
-static func ray_blocked(f, height: float, kind: String) -> bool:
-	if f == null:
-		return false
-	if kind == "flash":
-		return f.blocks_projectile and f.height >= 2.0
-	var blocks = f.blocks_sight if kind == "sight" else f.blocks_projectile
-	return blocks and (height <= f.height or f.kind == "window" and height >= 2.2)
 
 
 func open_door(id: String, broken: bool = false):
-	var door = interactables[id]
-	door.state = "broken" if broken else "open"
-	var f = door.feature
-	f.blocks_movement = false
-	f.blocks_sight = false
-	f.blocks_projectile = false
-	f.height = 0.0
+	var target: SCEntity = interactables[id].entity
+	if broken:
+		target.door.locked = false
+		target.door.faulted = false
+	target.request_door(true)
 	revision += 1
 	path_cache.clear()
 
 
-func create_greyport():
-	var data = SCData.mission
-	for key in data.rects:
-		var rect = data.rects[key]
-		var cells = {}
-		for y in range(int(rect[1]), int(rect[3]) + 1):
-			for x in range(int(rect[0]), int(rect[2]) + 1):
-				var c = Vector2i(x, y)
-				cells[c] = true
-				zone_cells[c] = key
-		zones[key] = {"id": key, "label": data.labels[key], "cells": cells, "rect": rect}
-	for y in range(height):
-		for x in range(width):
-			var c = Vector2i(x, y)
-			if not zone_cells.has(c):
-				set_cell(c, feature("full_cover", 2.2, true, true, true))
-			for direction in ["E", "S"]:
-				if zone_id(c) != zone_id(c + DIRS[direction]):
-					set_edge(c, direction, feature("wall", 2.2, true, true, true))
-	for d in data.doors:
-		var id = "door_" + d[0]
-		var c = SCData.cell(d[1])
-		var direction = d[2]
-		var other = c + DIRS[direction]
-		var f = feature("door", 2.2, true, true, true, id)
-		set_edge(c, direction, f)
-		interactables[id] = {
-			"id": id,
-			"kind": "door",
-			"state": "closed",
-			"locked": d[3],
-			"cell": c,
-			"direction": direction,
-			"feature": f
-		}
-		entrances[id] = {
-			"id": id, "a": c, "b": other, "zone_a": zone_id(c), "zone_b": zone_id(other)
-		}
-	for x in [26, 27, 28]:
-		edge_features.erase(edge_key(Vector2i(x, 25), "N"))
-		edge_features.erase(edge_key(Vector2i(x, 24), "S"))
-	set_edge(Vector2i(30, 23), "E", feature("window", 1.2, true, false, false))
-	set_edge(Vector2i(29, 10), "N", feature("window", 1.2, true, false, false))
-	for room in data.furniture:
-		for layer in range(2):
-			for rect in data.furniture[room][layer]:
-				for y in range(int(rect[1]), int(rect[3]) + 1):
-					for x in range(int(rect[0]), int(rect[2]) + 1):
-						set_cell(
-							Vector2i(x, y),
-							feature(
-								"low_cover" if layer == 0 else "full_cover",
-								1.0 if layer == 0 else 2.2,
-								true,
-								layer == 1,
-								true
-							)
-						)
+static func edge_rect(cell: Vector2i, direction: String) -> Rect2:
+	match direction:
+		"N": return Rect2(cell.x,cell.y-.025,1,.05)
+		"S": return Rect2(cell.x,cell.y+.975,1,.05)
+		"W": return Rect2(cell.x-.025,cell.y,.05,1)
+	return Rect2(cell.x+.975,cell.y,.05,1)
+
+func load_scene(spec: Dictionary, scene_entities: Dictionary):
+	var b: Array = spec.bounds_m
+	bounds = Rect2(b[0],b[1],b[2],b[3])
+	width = ceili(bounds.size.x)
+	height = ceili(bounds.size.y)
+	entities = scene_entities
+	for entity in entities.values(): entity.space=weakref(self)
+	for y in range(floori(bounds.position.y),ceili(bounds.end.y)):
+		for x in range(floori(bounds.position.x),ceili(bounds.end.x)):
+			var c := Vector2i(x,y)
+			cells[c] = spec.terrain.duplicate(true)
+			terrain_speed[c] = float(spec.terrain.movement_multiplier)
+	for entry in spec.cells:
+		var c := SCData.cell(entry.cell)
+		cells[c].merge(entry,true)
+		terrain_speed[c] = float(cells[c].movement_multiplier)
+	for entry in spec.edges:
+		set_edge(SCData.cell(entry.cell),entry.direction,feature("edge",entry.height_m,entry.blocks_movement,entry.blocks_sight,entry.blocks_projectile))
+	for id in spec.zones:
+		var zone: Dictionary = spec.zones[id]
+		var v: Array = zone.rect_m
+		var rect := Rect2(v[0],v[1],v[2],v[3])
+		var members := {}
+		for c in cells:
+			if rect.has_point(SCData.center(c)): members[c]=true; zone_cells[c]=id
+		zones[id] = {"id":id,"label":zone.label,"cells":members,"rect":[v[0],v[1],v[0]+v[2]-1,v[1]+v[3]-1]}
+	for entity in entities.values():
+		if entity.door.is_empty(): continue
+		var door: Dictionary = entity.door
+		var cell := SCData.cell_of(entity.position)
+		if door.placement=="edge":
+			cell=SCData.cell(entity.definition.edge_cell)
+			var direction: String = entity.definition.edge_direction
+			var feature := feature("door",entity.height(),entity.blocks("movement"),entity.blocks("sight"),entity.blocks("projectile"),entity.definition.id)
+			set_edge(cell,direction,feature)
+			entrances[entity.definition.id]={"id":entity.definition.id,"a":cell,"b":cell+DIRS[direction],"zone_a":zone_id(cell),"zone_b":zone_id(cell+DIRS[direction])}
+		interactables[entity.definition.id] = {"id":entity.definition.id,"kind":"door","state":door.state,"locked":door.locked,"cell":cell,"entity":entity}
+
+func move_body(origin: Vector2, offset: Vector2, radius: float, body_height: float, ignored_actor = null) -> Vector2:
+	var at := origin
+	for axis in [Vector2(offset.x,0),Vector2(0,offset.y)]:
+		if axis.length_squared()<.000000001: continue
+		var fraction := 1.0
+		var boxes: Array[AABB] = []
+		for c in cells:
+			if not cells[c].passable: boxes.append(AABB(Vector3(c.x,-100,c.y),Vector3(1,200,1)))
+		for c in cell_features:
+			if cell_features[c].blocks_movement: boxes.append(AABB(Vector3(c.x,0,c.y),Vector3(1,cell_features[c].height,1)))
+		var seen := {}
+		for f in edge_features.values():
+			if seen.has(f.id) or f.kind=="door" or not f.blocks_movement: continue
+			seen[f.id] = true
+			var rect := edge_rect(f.cell,f.direction)
+			boxes.append(AABB(Vector3(rect.position.x,0,rect.position.y),Vector3(rect.size.x,f.height,rect.size.y)))
+		var ground: float = cells.get(SCData.cell_of(at),{}).get("ground_height_m",0.0)
+		for entity in entities.values():
+			if entity.actor==ignored_actor and ignored_actor!=null or not entity.blocks("movement"): continue
+			var hit: float = entity.move_fraction(at,at+axis,radius,body_height,ground)
+			if hit>=0: fraction=minf(fraction,maxf(0,hit-.0001))
+		for box in boxes:
+			if box.position.y>=ground+body_height or box.end.y<=ground: continue
+			var expanded := AABB(box.position-Vector3(radius,0,radius),box.size+Vector3(radius*2,0,radius*2))
+			var hit := SCCombat.box_hit_fraction(Vector3(at.x,clampf(ground+body_height*.5,box.position.y,box.end.y),at.y),Vector3(at.x+axis.x,clampf(ground+body_height*.5,box.position.y,box.end.y),at.y+axis.y),expanded)
+			if hit>=0: fraction=minf(fraction,maxf(0,hit-.0001))
+		at += axis*fraction
+	var allowed := bounds.grow(-radius)
+	return at.clamp(allowed.position,allowed.end)

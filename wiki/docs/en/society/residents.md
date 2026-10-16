@@ -12,7 +12,7 @@ Alybe's population is divided between company-affiliated personnel and local res
 
 Before the Blackout, company employees and their families made up about three-tenths of the population and generally held higher social standing than local residents. Company status carried strong personal subordination: moving in or out was difficult, and ties with the company remained even after unemployment.
 
-Most local residents descend from illegal laborers brought in by Hephaestus Interstellar and Ogun Group. After the 1982 strike, Leviathan supported the establishment of residents' self-governance bodies, through which residents gained formal status independent of the companies.
+Most local residents descend from illegal laborers brought in during the colony’s development. After the 1982 strike, residents gained formal status independent of the companies and established self-governance bodies.
 
 ## Post-disaster resettlement
 

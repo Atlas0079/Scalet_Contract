@@ -687,7 +687,7 @@ func assign_search(t: Dictionary):
 
 
 func room_angle(room: String, c: Vector2i) -> float:
-	return SCRoomTasks.room_angle(room, c)
+	return SCRoomTasks.room_angle(world.grid, room, c)
 
 
 func finish_task(t: Dictionary):

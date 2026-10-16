@@ -6,7 +6,14 @@ var actor_name: String
 var team: String
 var position: Vector2
 var previous_position: Vector2
+var velocity := Vector2.ZERO
 var facing: float
+var _world: WeakRef
+var world: SCWorld:
+	get: return _world.get_ref() if _world else null
+	set(value): _world=weakref(value)
+var equipment: Array[Dictionary] = []
+var equipment_action: Dictionary = {}
 var weapon: Dictionary
 var character_id: String
 var definition: Dictionary
@@ -350,7 +357,10 @@ func treatment_part():
 	return found
 
 
-func resolve_hit(region: String, damage: float, rng: RandomNumberGenerator) -> Dictionary:
+func resolve_hit(region: String, damage: float, rng: RandomNumberGenerator, category := "kinetic", penetration := 0.0) -> Dictionary:
+	var protected := SCEquipment.protect(self,region,{"category":category,"damage":damage,"penetration":penetration})
+	if protected.blocked: return {"part_id":"","damage":0.0,"blocked":true,"layer":protected.layer}
+	damage=protected.damage
 	var pool = []
 	var total = 0.0
 	for p in parts.values():

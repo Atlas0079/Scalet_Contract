@@ -51,8 +51,6 @@ category: 编辑说明
 | 非真空谍报 | Non-Vacuum Intelligence | |
 | 加拉太人 | Galatians | |
 | 公共行政署 | Office of Public Administration | |
-| 联合理事会 | Joint Council | |
-| 居民议会 | Residents' Assembly | |
 | 机体整备中心 | Body Refit Center | |
 
 ## 派系
@@ -63,7 +61,6 @@ category: 编辑说明
 | 阿利贝唯一民主党 | Alybe Sole Democratic Party |
 | 隐名者 | the Untold |
 | 黑栈 | Black Stack |
-| 公民卫队 | Civic Guard |
 | 居民自治机构 | residents' self-governance bodies |
 | 劳动居民 | “working residents” |
 
@@ -81,7 +78,6 @@ category: 编辑说明
 | 灵能 | psionics | 灵能大师 psionic master，灵能负荷 psionic load |
 | 湿件 | wetware | 湿件终端 wetware terminal |
 | 维生罐 | life-support tank | |
-| 检修牌 | service tag | |
 | 意识载体 | consciousness carrier | |
 | 人造血 | synthetic blood | |
 | 人工组织 | synthetic tissue | |

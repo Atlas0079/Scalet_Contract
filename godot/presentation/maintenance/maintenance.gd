@@ -1,6 +1,5 @@
 extends Control
-## A presentation study. Uses the existing character rig and collision sweep;
-## the room is not connected to mission, inventory or perception state.
+## World state and interactions belong to SCWorld; this script renders the room.
 const ACTOR = preload("res://presentation/tactical/tactical_actor.gd")
 const SURFACE = preload("res://presentation/maintenance/surface.gdshader")
 const OBJECT_OUTLINE = preload("res://presentation/maintenance/object_outline.gd")
@@ -18,19 +17,26 @@ var compose: SubViewport
 var final_view: SubViewport
 var ui_layer: Control
 var text_items: Array[Dictionary] = []
-var occupied: Dictionary = {}
+var simulation: SCWorld
 var doors: Array[Dictionary] = []
 var bypass := false
 var saved_crt_enabled := true
 var capture_time := 1.25
 var surfaces: Array[ShaderMaterial] = []
-var blockers: Array[Rect2] = []
+
 var unit: Node3D
 var character: SCActor
-var at := Vector2(-0.5,2.5)
-var facing := -PI/2.0
-var clock_time := 0.0
-var frozen := false
+var at: Vector2:
+ get: return character.position
+ set(value): character.position = value
+var facing: float:
+ get: return character.facing
+ set(value): character.facing = value
+var clock_time: float:
+ get: return simulation.time
+var frozen: bool:
+ get: return simulation.paused
+ set(value): simulation.set_paused(value)
 var zoom := 1.0
 var strength := 0.4
 const CRT_WARP := 0.30
@@ -44,12 +50,14 @@ var status: Label
 var note: Label
 var note_back: ColorRect
 var help: Label
-var notes: Array[Dictionary] = []
+
 var lights: Array[OmniLight3D] = []
 var capture_pending := ""
 
 func _ready():
  if not SCData.ensure_valid(get_tree()): return
+ simulation = SCWorld.new("maintenance",true)
+ character = simulation.actors[0]
  var win := get_window()
  win.title = "Scarlet Contract · 地下维护站 / 美术小样"
  win.content_scale_size = SIZE
@@ -184,16 +192,13 @@ func box(pos: Vector3, dims: Vector3, hex: String, outlined := true) -> MeshInst
  return n
 
 
-func block(rect: Rect2):
- blockers.append(rect)
-
 func wall(pos: Vector2, dims: Vector2):
  var base := box(Vector3(pos.x,0.6,pos.y),Vector3(dims.x,1.2,dims.y),"394548")
  var cap := box(Vector3(pos.x,1.22,pos.y),Vector3(dims.x+0.025,0.045,dims.y+0.025),"768281")
  var key := "wall_"+str(base.get_instance_id())
  base.set_meta("outline_group",key)
  cap.set_meta("outline_group",key)
- block(Rect2(pos-dims/2,dims))
+
 
 func cable_run(points: Array):
  for i in range(points.size()-1):
@@ -214,11 +219,8 @@ func update_text_positions():
   l.position = (camera.unproject_position(item.pos)-l.size*0.5).round()
 
 func occupy(cells: Rect2i):
- for x in range(cells.position.x,cells.end.x):
-  for z in range(cells.position.y,cells.end.y):
-   occupied[Vector2i(x,z)] = true
  var rect := Rect2(Vector2(cells.position),Vector2(cells.size))
- block(rect)
+
  # A shallow mounting platform makes the entire blocked footprint visible.
  box(Vector3(rect.get_center().x,0.045,rect.get_center().y),Vector3(rect.size.x-0.035,0.055,rect.size.y-0.035),"384746",false)
  for x in range(cells.position.x,cells.end.x):
@@ -259,18 +261,12 @@ func build_architecture():
  floor_material.shader = preload("res://presentation/maintenance/floor.gdshader")
  floor_mesh.material_override = floor_material
  surfaces.append(floor_material)
- wall(Vector2(0,-4.06),Vector2(12.24,0.12))
- wall(Vector2(-6.06,0),Vector2(0.12,8.24))
- wall(Vector2(6.06,0),Vector2(0.12,8.24))
- wall(Vector2(-1.5,4.06),Vector2(9,0.12))
- wall(Vector2(5.5,4.06),Vector2(1,0.12))
- wall(Vector2(0,-1.5),Vector2(0.12,5))
- wall(Vector2(-5,1),Vector2(2,0.12))
- wall(Vector2(-0.5,1),Vector2(1,0.12))
- wall(Vector2(0.5,1),Vector2(1,0.12))
- wall(Vector2(5,1),Vector2(2,0.12))
- make_door(Vector2i(-4,0))
- make_door(Vector2i(1,0))
+ for entity in simulation.entities.values():
+  if entity.definition.id.begins_with("wall_"): wall(entity.position,entity.footprint().size)
+  elif entity.definition.id.begins_with("fixture_"):
+   var rect: Rect2 = entity.footprint()
+   occupy(Rect2i(Vector2i(rect.position),Vector2i(rect.size)))
+  elif not entity.door.is_empty(): make_door(Vector2i(entity.footprint().position))
  for x in [-5.0,-3.05,-1.10]:
   asset("modular_industrial_pipes_01",Vector3(x,0.35,-3.83),PI/2,1.0,"modular_industrial_pipes_01_pipe02",PI/2)
  label3("维修 / SERVICE",Vector3(-4,0.1,0.45),0.24,"bdc0a9")
@@ -283,26 +279,26 @@ func make_door(cell: Vector2i):
  # Authored three-metre rolling shutter. In the open state the leaf is retracted.
  var panel := asset("rollershutter_door",Vector3(center.x,0.06,center.y+0.43),0.0,0.96,"rollershutter_door")
  panel.visible = false
- doors.append({"cell":cell,"rect":footprint,"center":center,"panel":panel,"threshold":threshold,"closed":false})
+ var entity: SCEntity = simulation.entities["shutter_0" if cell.x==-4 else "shutter_1"]
+ doors.append({"entity":entity,"center":center,"panel":panel,"threshold":threshold,"base_y":panel.position.y})
  label3("卷帘门 / OPEN",Vector3(center.x,0.1,center.y),0.20,"d0d7be")
  doors[-1]["label_item"] = text_items.size()-1
 
 func set_door(index: int, closed: bool):
- var door: Dictionary = doors[index]
- door.closed = closed
- door.threshold.material_override.set_shader_parameter("base_color",Color("785f50") if closed else Color("527267"))
- door.panel.visible = closed
- var rect: Rect2 = door.rect
- if closed:
-  if not blockers.has(rect): blockers.append(rect)
- else: blockers.erase(rect)
- for x in range(int(rect.position.x),int(rect.end.x)):
-  var cell := Vector2i(x,int(rect.position.y))
-  if closed: occupied[cell] = true
-  else: occupied.erase(cell)
- var item: Dictionary = text_items[door.label_item]
- item.text = "卷帘门 / CLOSED" if closed else "卷帘门 / OPEN"
- if item.has("label"): item.label.text = item.text
+ var result := simulation.operate_door(doors[index].entity.definition.id,character,not closed)
+ if not result.is_empty(): note.text=result
+ sync_doors()
+
+func sync_doors():
+ for item in doors:
+  var entity: SCEntity = item.entity
+  item.panel.visible = entity.door.progress<1.0
+  if item.panel.visible: item.panel.position.y=item.base_y+entity.height()*entity.door.progress
+  item.threshold.material_override.set_shader_parameter("base_color",Color("785f50") if entity.door.progress<1.0 else Color("527267"))
+  var text: Dictionary = text_items[item.label_item]
+  text.text="卷帘门 / "+entity.door.state.to_upper()
+  if text.has("label"): text.label.text=text.text
+
 
 func asset(id: String, pos: Vector3, yaw := 0.0, uniform_scale := 1.0, part := "", tilt := 0.0, stretch_y := 1.0) -> Node3D:
  var n: Node3D = load("res://assets/environment/"+id+"/parts.gltf").instantiate()
@@ -346,7 +342,6 @@ func asset(id: String, pos: Vector3, yaw := 0.0, uniform_scale := 1.0, part := "
  return pivot
 
 func build_workshop():
- occupy(Rect2i(-6,-4,6,1))
  asset("painted_wooden_table",Vector3(-4,0.08,-3.5),0.0,0.80)
  asset("painted_wooden_table",Vector3(-2,0.08,-3.5),0.0,0.80)
  asset("bench_vice_01",Vector3(-4.65,0.85,-3.32),0.6)
@@ -357,31 +352,24 @@ func build_workshop():
  asset("wooden_crate_01",Vector3(-5.5,0.08,-3.5))
  asset("metal_tool_chest",Vector3(-5.5,0.43,-3.5))
  asset("Barrel_02",Vector3(-0.5,0.08,-3.5))
- occupy(Rect2i(-5,-1,2,1))
  asset("portable_generator",Vector3(-4.5,0.08,-0.5),PI/2)
  asset("plastic_crate_02",Vector3(-3.5,0.08,-0.5))
  asset("pipe_wrench",Vector3(-3.6,0.34,-0.5),0.3,1.0,"",PI/2)
  cable_run([Vector3(-4.5,0.09,-0.45),Vector3(-4.5,0.09,-0.08),Vector3(-3.05,0.09,-0.08),Vector3(-3.05,0.09,-1.1),Vector3(0.03,0.09,-1.1)])
- occupy(Rect2i(-6,-1,1,1))
  asset("portable_welding_cart",Vector3(-5.5,0.08,-0.5),PI)
- occupy(Rect2i(-1,-1,1,1))
  asset("metal_stool_02",Vector3(-0.5,0.08,-0.5))
  strip(Vector3(-4,1.6,-3.85),1.7,"ffd29c",6.0,4.2)
  lamp(Vector3(-4.2,1.1,-1.7),"ffb878",1.25,2.5)
- notes.append({"pos":Vector2(-3.5,-1.5),"title":"01 / 未完成的检修","text":"测量仪和工具留在工作台，焊接车停在检修底座旁。拆下的零件装进周转箱，电缆绕开通道。"})
 
 func build_power_room():
- occupy(Rect2i(0,-4,6,1))
  asset("drawer_cabinet",Vector3(1,0.08,-3.5))
  var cart := asset("tool_cart",Vector3(3,0.08,-3.5))
  var top := 0.08+float(cart.get_meta("bounds").y)
  asset("power_box_01",Vector3(2.68,top,-3.5),0.0,1.0,"",-PI/2)
  asset("retro_multimeter",Vector3(3.38,top,-3.4),0.0,1.0,"",-PI/2)
  asset("portable_welding_cart",Vector3(5,0.08,-3.5),PI)
- occupy(Rect2i(4,-2,1,1))
  asset("portable_generator",Vector3(4.5,0.08,-1.5),PI/2)
  cable_run([Vector3(4.5,0.1,-1.85),Vector3(4.88,0.1,-1.85),Vector3(4.88,0.1,-3.06),Vector3(3.5,0.1,-3.06)])
- occupy(Rect2i(1,-1,2,1))
  var radio_cart := asset("tool_cart",Vector3(2,0.08,-0.5))
  var radio_top := 0.08+float(radio_cart.get_meta("bounds").y)
  asset("vintage_radio_transceiver",Vector3(1.84,radio_top,-0.5),0.0,1.0,"",-PI/2)
@@ -390,32 +378,24 @@ func build_power_room():
  strip(Vector3(2.5,2.05,-3.85),1.5,"b6ddc9",5.0,4.1)
  asset("industrial_wall_sconce",Vector3(5.83,0.9,-1.5),PI/2)
  lamp(Vector3(5.6,1.4,-1.5),"ff805b",1.7,3.0)
- notes.append({"pos":Vector2(3.5,-1.5),"title":"02 / 备用回路","text":"收发机与测量仪集中在移动工作台，备用电源仍在运行。后墙按用途收拢了配电检修、工具和焊接设备。"})
 
 func build_corridor():
- occupy(Rect2i(-6,3,3,1))
  for x in [-5.5,-4.5,-3.5]:
   asset("wooden_crate_01",Vector3(x,0.08,3.3))
   asset("wooden_crate_01",Vector3(x,0.08,3.75))
  asset("wooden_crate_01",Vector3(-5.5,0.43,3.3))
- occupy(Rect2i(-6,1,1,1))
  for x in [-5.74,-5.25]: asset("Barrel_02",Vector3(x,0.08,1.5),0.0,0.90)
- occupy(Rect2i(5,1,1,1))
  for z in [1.26,1.75]: asset("Barrel_02",Vector3(5.5,0.08,z),0.0,0.9)
- occupy(Rect2i(5,3,1,1))
  asset("wooden_crate_01",Vector3(5.5,0.08,3.3))
  asset("plastic_crate_02",Vector3(5.5,0.08,3.8))
- occupy(Rect2i(2,3,1,1))
  asset("hand_truck",Vector3(2.5,0.08,3.5),PI)
  label3("出口  ->",Vector3(3.8,0.1,2.5),0.29,"bfc2a9")
  label3("B-02",Vector3(-3.5,0.1,2.5),0.4,"9fae9f")
  strip(Vector3(-2.5,1.6,3.85),1.5,"a3c3d7",5.0,4.2)
  asset("industrial_wall_sconce",Vector3(4,0.9,4.0))
  lamp(Vector3(4,1.4,3.8),"ff9570",1.8,3.6)
- notes.append({"pos":Vector2(3.5,2.5),"title":"03 / 匆忙撤离","text":"木箱和周转箱沿通道边缘收拢，搬运车留在出口旁。完整的空格组成撤离路线。"})
 
 func build_character():
- character = SCActor.new(0,"观察员","red",Vector2.ZERO,-PI/2,SCData.study.unit)
  character.training_enabled = false
  unit = ACTOR.new()
  unit.stylized = true
@@ -526,21 +506,11 @@ func _unhandled_input(event: InputEvent):
    KEY_BRACKETRIGHT: strength = minf(1.0,strength+0.1)
    KEY_O:
     for i in range(doors.size()):
-     if at.distance_to(doors[i].center) < 1.65:
-      var rect: Rect2 = doors[i].rect.grow(character.radius)
-      if not doors[i].closed and rect.has_point(at):
-       note.text = "先离开门格，再关闭门。"
-      else: set_door(i,not doors[i].closed)
+     if at.distance_to(doors[i].center)<1.65:
+      set_door(i,doors[i].entity.door.target_open)
       break
    KEY_E:
-    selected_note = -1
-    var nearest := 1.8
-    for i in range(notes.size()):
-     var distance: float = at.distance_to(notes[i].pos)
-     if distance < nearest:
-      nearest = distance
-      selected_note = i
-    note.text = notes[selected_note].title+"\n"+notes[selected_note].text if selected_note >= 0 else "靠近工作台、配电区或出口，再按 E 查看现场。"
+    note.text = simulation.inspect(character)
   post.set_shader_parameter("strength",strength)
   refresh_status()
  if event is InputEventMouseButton and event.pressed:
@@ -550,34 +520,22 @@ func _unhandled_input(event: InputEvent):
   update_outline_width()
   update_text_positions()
 
-func move_allowed(origin: Vector2, delta: Vector2) -> Vector2:
- var p := origin
- for axis in [Vector2(delta.x,0),Vector2(0,delta.y)]:
-  var fraction := 1.0
-  for rect in blockers:
-   var expanded := rect.grow(character.radius)
-   var b := AABB(Vector3(expanded.position.x,0,expanded.position.y),Vector3(expanded.size.x,3,expanded.size.y))
-   var hit := SCCombat.box_hit_fraction(Vector3(p.x,1,p.y),Vector3(p.x+axis.x,1,p.y+axis.y),b)
-   if hit >= 0.0: fraction = minf(fraction,maxf(0.0,hit-0.001))
-  p += axis*fraction
- return p.clamp(ARENA.position+Vector2.ONE*character.radius,ARENA.end-Vector2.ONE*character.radius)
-
 func _process(delta: float):
  if not is_instance_valid(unit) or not post: return
  if object_outline: object_outline.sync_instances()
  if frozen: return
- clock_time += delta
+ simulation.update(delta)
+ sync_doors()
  post.set_shader_parameter("elapsed_time",clock_time)
  var movement := Vector2(float(Input.is_physical_key_pressed(KEY_D))-float(Input.is_physical_key_pressed(KEY_A)),float(Input.is_physical_key_pressed(KEY_S))-float(Input.is_physical_key_pressed(KEY_W))).normalized()
- var before := at
- at = move_allowed(at,movement*minf(character.speed,2.2)*delta)
- var velocity := (at-before)/maxf(delta,0.0001)
- unit.position = Vector3(at.x,0,at.y)
  var mouse := screen_uv_to_scene(get_local_mouse_position()/Vector2(SIZE))*Vector2(view.size)
  var ray := camera.project_ray_origin(mouse)
  var target := Vector2(ray.x,ray.z)
- if not capture_pending.is_empty(): target = at+Vector2(1,-1)
- if target.distance_to(at)>0.2: facing = rotate_toward(facing,(target-at).angle(),3.2*delta)
+ if not capture_pending.is_empty(): target=at+Vector2(1,-1)
+ var desired := (target-at).angle() if target.distance_to(at)>.2 else facing
+ simulation.controlled_movement(character,movement,desired,delta)
+ var velocity := character.velocity
+ unit.position=Vector3(at.x,0,at.y)
  var yaw := PI/2-facing
  var local_velocity := Vector3(velocity.x,0,velocity.y).rotated(Vector3.UP,-yaw)
  # Actor pose solver uses origin-relative target coordinates.
