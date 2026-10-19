@@ -1,0 +1,52 @@
+<div id="alibe-city-study">
+  <h3>阿利贝 · 空间结构草模</h3>
+  <div class="viz-controls">
+    <button class="btn" type="button" data-view="orbit">立体</button>
+    <button class="btn" type="button" data-view="front">侧视</button>
+    <button class="btn" type="button" data-view="top">俯视</button>
+    <label class="form-label">楼层 <select class="form-select" id="alibe-floor"><option value="all">全部四层</option><option value="0">L1 · 最上层</option><option value="1">L2</option><option value="2">L3</option><option value="3">L4 · 最深层</option></select></label>
+  </div>
+  <div class="alibe-stage" role="img" aria-label="可拖动旋转的倒金字塔城市模型：椭球形泡由层内公路连接，少数竖直电梯连接相邻层。"></div>
+  <div class="viz-row text-small"><span class="alibe-bubble">● 泡</span><span class="alibe-road">━ 层内公路</span><span class="alibe-lift">┃ 跨层电梯</span><span>拖动旋转 · 滚轮缩放</span></div>
+  <div class="text-small" aria-live="polite" id="alibe-detail">四层 · 不规则路网 · 已去掉底部尖端两层</div>
+</div>
+<style>
+#alibe-city-study .alibe-stage{width:100%;height:510px;touch-action:none;cursor:grab}
+#alibe-city-study canvas{display:block;width:100%;height:100%}
+#alibe-city-study .alibe-bubble{color:var(--viz-series-1)}
+#alibe-city-study .alibe-road{color:var(--muted-foreground)}
+#alibe-city-study .alibe-lift{color:var(--viz-series-2)}
+@media(max-width:450px){#alibe-city-study .alibe-stage{height:400px}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+(function(){
+const root=document.getElementById('alibe-city-study'), stage=root.querySelector('.alibe-stage'), floor=root.querySelector('select'), info=root.querySelector('#alibe-detail');
+const data=__SCENE__;
+if(!window.THREE){info.textContent='三维预览资源未加载';return;}
+const T=window.THREE, scene=new T.Scene(), camera=new T.PerspectiveCamera(38,1,.1,150), renderer=new T.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));stage.appendChild(renderer.domElement);
+scene.add(new T.HemisphereLight(0xffffff,0x7b8790,2));const light=new T.DirectionalLight(0xffffff,2.2);light.position.set(6,12,10);scene.add(light);
+const all=[], bubbleMat=new T.MeshStandardMaterial({roughness:.55,metalness:.12}), roadMat=new T.MeshStandardMaterial({roughness:.8}), liftMat=new T.MeshStandardMaterial({roughness:.5,metalness:.25});
+const sphere=new T.SphereGeometry(1,24,16);
+data.layers.forEach((nodes,l)=>nodes.forEach(n=>{const m=new T.Mesh(sphere,bubbleMat);m.position.fromArray(n.p);m.scale.fromArray(n.s);scene.add(m);all.push({m,l,kind:'bubble'});}));
+function tube(e,r,mat,kind){const a=new T.Vector3(...e.a), b=new T.Vector3(...e.b), d=b.clone().sub(a);if(d.length()<.001)return;const m=new T.Mesh(new T.CylinderGeometry(r,r,d.length(),10),mat);m.position.copy(a.clone().add(b).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());scene.add(m);all.push({m,l:e.l,kind});}
+data.roads.forEach(e=>tube(e,.085,roadMat,'road'));data.lifts.forEach(e=>tube(e,.13,liftMat,'lift'));
+let yaw=.73,pitch=.29,distance=32,target=new T.Vector3(0,-5.7,0),drag=null;
+function color(token){const probe=document.createElement('span');probe.style.color='var('+token+')';root.appendChild(probe);const c=getComputedStyle(probe).color;probe.remove();return c;}
+function theme(){bubbleMat.color.set(color('--viz-series-1'));roadMat.color.set(color('--muted-foreground'));liftMat.color.set(color('--viz-series-2'));draw();}
+function draw(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.position.set(target.x+distance*Math.sin(yaw)*Math.cos(pitch),target.y+distance*Math.sin(pitch),target.z+distance*Math.cos(yaw)*Math.cos(pitch));camera.lookAt(target);camera.updateProjectionMatrix();renderer.render(scene,camera);}
+function save(){if(window.openai?.setWidgetState)window.openai.setWidgetState({modelContent:{floor:floor.value},privateContent:{yaw,pitch,distance}}).catch(()=>{});}
+function applyFloor(){const l=floor.value;all.forEach(o=>o.m.visible=l==='all'||o.l===+l&&o.kind!=='lift'||o.kind==='lift'&&(o.l===+l||o.l===+l-1));target.y=l==='all'?-5.7:data.heights[+l];info.textContent=l==='all'?'四层 · 不规则路网 · 已去掉底部尖端两层':`L${+l+1} · ${data.layers[+l].length} 个示意泡 · 显示相邻跨层电梯`;draw();}
+function restore(s){if(s?.privateContent){yaw=s.privateContent.yaw??yaw;pitch=s.privateContent.pitch??pitch;distance=s.privateContent.distance??distance;}const f=s?.modelContent?.floor;if(f==='all'||['0','1','2','3'].includes(String(f)))floor.value=String(f);applyFloor();}
+floor.addEventListener('change',()=>{applyFloor();save();});
+root.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{const v=b.dataset.view;yaw=v==='orbit'?.73:0;pitch=v==='top'?1.565:v==='front'?0:.29;draw();save();}));
+stage.addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY];stage.setPointerCapture(e.pointerId);});
+stage.addEventListener('pointermove',e=>{if(!drag)return;yaw-=(e.clientX-drag[0])*.008;pitch=Math.max(-1.4,Math.min(1.565,pitch+(e.clientY-drag[1])*.008));drag=[e.clientX,e.clientY];draw();});
+stage.addEventListener('pointerup',()=>{drag=null;save();});stage.addEventListener('pointercancel',()=>drag=null);
+stage.addEventListener('wheel',e=>{e.preventDefault();distance=Math.max(12,Math.min(65,distance*Math.exp(e.deltaY*.001)));draw();save();},{passive:false});
+new ResizeObserver(draw).observe(stage);new MutationObserver(theme).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});
+window.addEventListener('openai:set_globals',e=>{if(e.detail?.globals?.widgetState)restore(e.detail.globals.widgetState);});
+theme();restore(window.openai?.widgetState);window.alibeStudy={data,scene,renderer,draw};
+})();
+</script>

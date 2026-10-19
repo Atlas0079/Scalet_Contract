@@ -10,6 +10,8 @@ The undecided institutions, technical conditions, and story arrangements are col
 
 | Scope | Items to be decided |
 | --- | --- |
+| Alybe's scale and operation | Actual width, depth, population, layer count, and number of bubbles; the functions of bubbles at different scales, transport and freight capacity, power supply, and environmental systems. The four layers and specific bubble count in the 3D study are structural illustrations only. |
+| Surface conditions and domes | Surface temperature, pressure, and atmosphere; the form of the giant cold-shielding installations, environmental changes after dome failure, isolation of neighboring districts, and spacesuit protection requirements. |
 | Common governance | The division of public authority and the scope of residents’ self-governance. |
 | Personhood and trade | The legal personhood of androids and the boundaries of trade in disembodied brain tissue. |
 | Opening commissions | The commissioning parties, objectives, hostile teams, and sequence of the Observer's first batch of missions. |

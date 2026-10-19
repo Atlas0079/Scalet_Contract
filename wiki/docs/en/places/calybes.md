@@ -17,6 +17,8 @@ infobox:
 
 Calybes is a remote mining planet with rich deposits of Cot, a precious mineral used in interstellar travel.
 
+The planet's surface is extremely cold. Alybe's surface districts rely on giant installations to shield them from the cold; see [Alybe](alybe.md).
+
 Leviathan Interstellar led the founding of Alybe, the only colony on Calybes, jointly developed and jointly administered by the companies. Alybe's primary business is Cot mining and freight transshipment for nearby port planets.
 
 Scarlet is developing a system that delivers nuclear warheads with active Cot, with a target range covering the entire Calybes system, including fleet rear areas, orbital facilities, and shipping hubs. The system is still under development. See [Cot](../technology/cot.md).

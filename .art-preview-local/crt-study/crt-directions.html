@@ -1,0 +1,106 @@
+<div id="iron-crt-study">
+  <div class="viz-carousel" aria-label="CRT 界面方向" data-previous-label="上一版" data-next-label="下一版">
+    <section data-variant="边缘式指挥" aria-label="边缘式指挥界面">
+      <div class="crt-product" data-layout="edge">
+        <div class="study-controls"><button type="button" data-mode="field" aria-pressed="true">地面指挥</button><button type="button" data-mode="base" aria-pressed="false">基地配置</button><span>720 × 540 · 布局草案</span></div>
+        <canvas width="720" height="540" role="img" aria-label="低分辨率指挥界面，顶部位置栏、底部队员列表；点击队员可切换选中状态"></canvas>
+        <div class="study-controls roster"><button type="button" data-unit="0" aria-pressed="true">选择 01</button><button type="button" data-unit="1" aria-pressed="false">选择 02</button><button type="button" data-unit="2" aria-pressed="false">选择 03</button><span>场景、角色编号与数值均为占位</span></div>
+      </div>
+    </section>
+    <section data-variant="侧栏式指挥" aria-label="侧栏式指挥界面" hidden>
+      <div class="crt-product" data-layout="side">
+        <div class="study-controls"><button type="button" data-mode="field" aria-pressed="true">地面指挥</button><button type="button" data-mode="base" aria-pressed="false">基地配置</button><span>720 × 540 · 布局草案</span></div>
+        <canvas width="720" height="540" role="img" aria-label="低分辨率指挥界面，左侧固定队员栏，右侧为场景；点击队员可切换选中状态"></canvas>
+        <div class="study-controls roster"><button type="button" data-unit="0" aria-pressed="true">选择 01</button><button type="button" data-unit="1" aria-pressed="false">选择 02</button><button type="button" data-unit="2" aria-pressed="false">选择 03</button><span>场景、角色编号与数值均为占位</span></div>
+      </div>
+    </section>
+  </div>
+</div>
+<style>
+ #iron-crt-study .crt-product{--crt-accent:#d5b66e;max-width:720px;margin:auto;color:#d9ddd6;background:#101715;font:14px/1.5 monospace;}
+ #iron-crt-study canvas{display:block;width:100%;height:auto;image-rendering:pixelated;touch-action:manipulation;}
+ #iron-crt-study .study-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px;background:#1b2522;}
+ #iron-crt-study button{font:inherit;color:#d9ddd6;background:#26332e;border:1px solid #64746a;padding:6px 10px;border-radius:0;min-height:36px;}
+ #iron-crt-study button[aria-pressed="true"]{color:#101715;background:var(--crt-accent);border-color:var(--crt-accent);}
+ #iron-crt-study span{font-size:12px;color:#b8c3b9;margin-left:auto;}
+ @media(pointer:coarse){#iron-crt-study button{min-height:44px;}}
+</style>
+<script>
+(()=>{
+const root=document.getElementById('iron-crt-study');
+const state={accent:'#d5b66e',scanlines:false};
+const all=[];
+const saved=window.openai?.widgetState?.privateContent || {};
+function save(){window.openai?.setWidgetState({modelContent:{design:'低分辨率 CRT 指挥草案'},privateContent:Object.fromEntries(all.map(v=>[v.layout,{mode:v.mode,unit:v.unit}]))})?.catch(()=>{});}
+root.querySelectorAll('.crt-product').forEach(el=>{
+ const v={el,layout:el.dataset.layout,mode:'field',unit:0,canvas:el.querySelector('canvas')};
+ if(saved[v.layout])Object.assign(v,saved[v.layout]);
+ all.push(v);
+ el.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{v.mode=b.dataset.mode;render(v);save();}));
+ el.querySelectorAll('[data-unit]').forEach(b=>b.addEventListener('click',()=>{v.unit=Number(b.dataset.unit);render(v);save();}));
+ v.canvas.addEventListener('click',e=>{const b=v.canvas.getBoundingClientRect();const x=(e.clientX-b.left)*v.canvas.width/b.width,y=(e.clientY-b.top)*540/b.height;
+ if(v.layout==='side'&&v.canvas.width===720&&x<152&&y>62&&y<338)v.unit=Math.min(2,Math.floor((y-62)/92));
+ else if(y>444&&y<508)v.unit=Math.min(2,Math.floor(x/(v.canvas.width/3)));
+ else return; render(v);save();});
+});
+function render(v){
+const c=v.canvas,small=root.getBoundingClientRect().width<580;
+c.width=small?360:720;c.height=540;
+const g=c.getContext('2d'),W=c.width,A=state.accent,ink='#dde0d6',muted='#a5b3a8',bg='#101715',panel='#17201c';
+const rect=(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h));};
+// Rasterize labels at the design grid, with binary glyph coverage.
+function text(s,x,y,color=ink,size=16){const t=document.createElement('canvas');t.width=Math.max(1,s.length*size+12);t.height=size+8;const q=t.getContext('2d');q.font=`${size}px "PingFang SC", "Microsoft Yahei", monospace`;q.textBaseline='top';q.fillStyle=color;q.fillText(s,0,1);const d=q.getImageData(0,0,t.width,t.height);for(let i=3;i<d.data.length;i+=4)d.data[i]=d.data[i]>=110?255:0;q.putImageData(d,0,0);g.drawImage(t,Math.round(x),Math.round(y));}
+function line(x,y,w,col='#415147'){rect(x,y,w,1,col);}
+function frame(x,y,w,h,col=A){rect(x,y,w,2,col);rect(x,y+h-2,w,2,col);rect(x,y,2,h,col);rect(x+w-2,y,2,h,col);}
+rect(0,0,W,540,bg);rect(0,0,8,44,A);text('地面作业',20,12,A,20);text(v.mode==='base'?'基地配置':'现场指挥',W-100,16,ink,16);line(16,43,W-32);
+const side=v.layout==='side'&&!small, mx=side?164:0,my=88,mw=W-mx,mh=side?418:348;
+text('B–02 / 地下维护站',side?178:16,59,ink,16);
+if(!small)text('中继防务  /  现场',W-180,59,muted,14);
+// Abstract top-down scene placeholder, deliberately distinct from finished game art.
+g.save();g.beginPath();g.rect(mx,my,mw,mh);g.clip();
+rect(mx,my,mw,mh,'#26352f');
+for(let x=mx;x<mx+mw;x+=36)rect(x,my,1,mh,'#2c3b34');
+for(let y=my;y<my+mh;y+=36)rect(mx,y,mw,1,'#2c3b34');
+const sx=mw/720,sy=mh/348;
+function room(x,y,w,h){rect(mx+x*sx,my+y*sy,w*sx,h*sy,'#0b1210');rect(mx+(x+8)*sx,my+(y+8)*sy,(w-16)*sx,(h-16)*sy,'#3b4940');rect(mx+(x+8)*sx,my+(y+h-10)*sy,(w-16)*sx,3,'#677267');}
+room(28,20,312,212);room(362,20,330,212);room(28,252,664,140);
+// Door openings and work surfaces.
+rect(mx+133*sx,my+221*sy,70*sx,14,'#46574a');rect(mx+485*sx,my+221*sy,70*sx,14,'#46574a');
+[[54,46,92,28],[205,46,104,28],[55,116,28,65],[257,130,52,38],[398,48,90,28],[616,52,42,60],[493,141,74,38],[62,284,91,34],[594,284,63,34]].forEach((a,i)=>{
+const [x,y,w,h]=a;rect(mx+x*sx+4,my+y*sy+5,w*sx,h*sy,'#18231d');rect(mx+x*sx,my+y*sy,w*sx,h*sy,i%3===0?'#8e8968':'#687967');rect(mx+x*sx,my+y*sy,w*sx,3,'#a6ac90');});
+// Power equipment, shown as planar blocks rather than invented device icons.
+rect(mx+624*sx,my+135*sy,28*sx,32*sy,'#aa9663');rect(mx+629*sx,my+140*sy,18*sx,9*sy,'#c4b572');
+const positions=[[285,278],[354,290],[427,268]];
+positions.forEach(([x,y],i)=>{const px=Math.round(mx+x*sx),py=Math.round(my+y*sy);rect(px+3,py+5,10,12,'#172019');rect(px,py,10,12,i===v.unit?A:'#a7bbad');rect(px+3,py-4,4,5,ink);if(i===v.unit)frame(px-8,py-12,28,32);text('0'+(i+1),px-4,py+24,i===v.unit?A:ink,14);});
+if(!small){text('维修间',mx+48*sx,my+194*sy,muted,14);text('配电间',mx+386*sx,my+194*sy,muted,14);}
+g.restore();
+// A modest selected-object callout, not a permanent information dashboard.
+if(v.mode==='field'){
+ const cw=small?178:202,cx=W-cw-16,cy=small?110:104;
+ rect(cx,cy,cw,76,panel);rect(cx,cy,3,76,A);text('当前选择 / 0'+(v.unit+1),cx+12,cy+10,A,16);text(['待命 · 步枪','待命 · 医疗装备','待命 · 工具组'][v.unit],cx+12,cy+40,ink,14);
+}else{
+ const pw=small?W-32:300,px=small?16:W-pw-16;
+ rect(px,104,pw,298,bg);rect(px,104,pw,32,A);text('基地 / 设施配置',px+12,111,bg,16);
+ ['维修区','仓储区','配电区'].forEach((s,i)=>{const y=152+i*46;if(i===v.unit)rect(px+10,y-2,pw-20,34,'#344538');text('0'+(i+1),px+20,y+5,i===v.unit?A:muted,14);text(s,px+64,y+4,ink,16);});
+ line(px+12,298,pw-24);text(['维修区','仓储区','配电区'][v.unit],px+16,316,A,16);text('设施详情与配置入口',px+16,346,ink,14);text('选择后显示实际内容',px+16,372,muted,14);
+}
+function roster(i,x,y,w,h,vertical){
+ const on=i===v.unit;rect(x,y,w,h,on?A:panel);const fg=on?bg:ink,sub=on?'#344035':muted;
+ text('0'+(i+1),x+12,y+9,fg,vertical?24:20);
+ text(['步枪','医疗','工具'][i],x+(vertical?12:54),y+(vertical?43:12),fg,16);
+ if(vertical)text('待命',x+80,y+45,sub,14);else text('待命',x+54,y+36,sub,14);
+}
+if(side){rect(0,52,152,454,bg);text('队员',16,57,muted,14);for(let i=0;i<3;i++)roster(i,8,86+i*92,136,84,true);text('选择对象后',16,408,muted,14);text('显示相关操作',16,432,muted,14);}
+else{rect(0,436,W,76,bg);for(let i=0;i<3;i++)roster(i,8+i*((W-16)/3),444,(W-16)/3-6,62,false);}
+rect(0,512,W,28,bg);line(16,512,W-32);text(v.mode==='base'?'设施配置 / 视觉样例':'选中队员 / 查看状态',16,520,muted,14);if(!small)text('SCARLET CONTRACT',W-164,520,A,14);
+if(state.scanlines)for(let y=0;y<540;y+=3)rect(0,y,W,1,'#00000026');
+v.el.style.setProperty('--crt-accent',A);
+v.el.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===v.mode)));
+v.el.querySelectorAll('[data-unit]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.unit)===v.unit)));
+}
+function draw(){all.forEach(render);}
+draw();new ResizeObserver(draw).observe(root);
+window.addEventListener('openai:set_globals',e=>{const p=e.detail?.globals?.widgetState?.privateContent;if(p){all.forEach(v=>{if(p[v.layout])Object.assign(v,p[v.layout]);});draw();}});
+if(globalThis.Tweak){const t=new Tweak({container:root,onChange:draw});t.addColorPicker(state,'accent',{label:'选中与标题强调色'});t.addToggle(state,'scanlines',{label:'轻微扫描线预览'});}
+})();
+</script>
