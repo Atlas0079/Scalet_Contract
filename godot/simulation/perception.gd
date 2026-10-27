@@ -180,7 +180,7 @@ static func update_enemy(w, a):
 					):
 						continue
 					if (
-						g.raycast(SCData.center(c), target.position, 1.65, 1.25, "projectile")[1]
+						(SCCombat.projectile_obstruction(g,SCData.center(c),target.position,1.65,1.25,a.weapon.ammunition.penetration) if a.weapon.definition.attack_category=="kinetic" else g.raycast(SCData.center(c),target.position,1.65,1.25,"projectile")[1])
 						!= null
 					):
 						continue

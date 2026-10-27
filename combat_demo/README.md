@@ -3,7 +3,7 @@
 当前运行入口是 Godot 舱室主场景。根目录 `Start Demo.cmd`、`Start Godot.cmd` 默认进入舱室；`Open CRT Cabin.command` / `.cmd` 直接打开同一场景，使用 Forward+。`Open Tactical Preview.cmd` 保留角色与射击测试场景的独立开发入口；`Open Godot Editor.cmd` 用于打开工程。场景名称与架构职责统一见 [战术玩法与表现设计第 16 节](docs/demo_design.md#16-项目职责与实现边界)。
 
 
-本目录保留 Python 模拟逻辑，供规则对照与仍适用的底层检查使用。实际游戏开发与运行以 `godot/` 为准；当前尚未完成按最新美学搭建的正式战场。
+本目录保存玩法设计、验证资料及字体与音效制作工具。游戏运行、模拟逻辑和后续开发统一使用 `godot/`；当前尚未完成按最新美学搭建的正式战场。
 
 ## 当前设计
 
@@ -31,8 +31,10 @@ WASD 移动，鼠标朝向，滚轮缩放，E 查看附近现场说明，O 开�
 - [撤离循环与体验目标](docs/player_experience_review.md)：已确认循环及待定体验细则。
 - [项目交接](docs/project_handoff.md)：当前状态与职责入口。
 
-## 验证资料
+## 当前验收与验证资料
+
+完整 demo 完成前，从正常入口运行舱室、维护站、射击场和阿利贝漫游，通过实际操作验看交互、画面与结果。自动断言、模拟夹具及批量回归脚本已移除，本阶段不再新增或运行这类套件。程序运行必需的配置和数据校验保留。
 
 [验证记录](docs/validation.md)描述其标注版本的实际检查结果，不能作为当前测试场或新美学已经完成的证明。Godot 迁移阶段的测量结果见 [迁移验证说明](../godot/LOCAL_MIGRATION.md)。
 
-界面专用测试源码保存在本地 `.art-preview-local/retired-greyport-tests-20260930`，不用于当前测试场入口。新增辅助测试、脚本与验证文档的提交范围遵循用户级 `AGENTS.md`。
+四个预设画面捕获工具移至本地 `.art-preview-local/capture-tools/`，仅辅助讨论画面，不提供实操验收结论。截图、日志等辅助材料的提交范围遵循 `AGENTS.md`。

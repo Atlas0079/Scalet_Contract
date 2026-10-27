@@ -34,7 +34,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 90
       },
       {
         "id": "wall_1",
@@ -52,7 +53,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 90
       },
       {
         "id": "wall_2",
@@ -70,7 +72,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 90
       },
       {
         "id": "wall_3",
@@ -88,7 +91,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 90
       },
       {
         "id": "wall_4",
@@ -106,7 +110,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 90
       },
       {
         "id": "wall_5",
@@ -124,7 +129,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 90
       },
       {
         "id": "wall_6",
@@ -142,7 +148,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 90
       },
       {
         "id": "wall_7",
@@ -160,7 +167,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 90
       },
       {
         "id": "wall_8",
@@ -178,7 +186,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 90
       },
       {
         "id": "wall_9",
@@ -196,7 +205,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 90
       },
       {
         "id": "fixture_0",
@@ -214,7 +224,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "fixture_1",
@@ -232,7 +243,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "fixture_2",
@@ -250,7 +262,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "fixture_3",
@@ -268,7 +281,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "fixture_4",
@@ -286,7 +300,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "fixture_5",
@@ -304,7 +319,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "fixture_6",
@@ -322,7 +338,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "fixture_7",
@@ -340,7 +357,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "fixture_8",
@@ -358,7 +376,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "fixture_9",
@@ -376,7 +395,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "fixture_10",
@@ -394,7 +414,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "fixture_11",
@@ -412,7 +433,8 @@
         "height_m": 1.2,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "shutter_0",
@@ -440,7 +462,8 @@
           "opening_height_m": 2.2,
           "powered": true,
           "faulted": false
-        }
+        },
+        "protection": 90
       },
       {
         "id": "shutter_1",
@@ -468,7 +491,8 @@
           "opening_height_m": 2.2,
           "powered": true,
           "faulted": false
-        }
+        },
+        "protection": 90
       },
       {
         "id": "note_0",
@@ -494,7 +518,8 @@
             "duration_seconds": 0.0,
             "text": "测量仪和工具留在工作台，焊接车停在检修底座旁。拆下的零件装进周转箱，电缆绕开通道。"
           }
-        ]
+        ],
+        "protection": 8
       },
       {
         "id": "note_1",
@@ -520,7 +545,8 @@
             "duration_seconds": 0.0,
             "text": "收发机与测量仪集中在移动工作台，备用电源仍在运行。后墙按用途收拢了配电检修、工具和焊接设备。"
           }
-        ]
+        ],
+        "protection": 8
       },
       {
         "id": "note_2",
@@ -546,7 +572,8 @@
             "duration_seconds": 0.0,
             "text": "木箱和周转箱沿通道边缘收拢，搬运车留在出口旁。完整的空格组成撤离路线。"
           }
-        ]
+        ],
+        "protection": 8
       }
     ],
     "actors": [
@@ -627,7 +654,8 @@
         "height_m": 0.8,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "barrier_1",
@@ -645,7 +673,8 @@
         "height_m": 1.3,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "barrier_2",
@@ -663,7 +692,8 @@
         "height_m": 2.6,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "gap_wall_0",
@@ -681,7 +711,8 @@
         "height_m": 2.6,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "gap_wall_1",
@@ -699,7 +730,8 @@
         "height_m": 2.6,
         "blocks_movement": true,
         "blocks_sight": true,
-        "blocks_projectile": true
+        "blocks_projectile": true,
+        "protection": 8
       },
       {
         "id": "open_3",
@@ -721,7 +753,8 @@
         "shape": "cylinder",
         "radius_m": 0.23,
         "kind": "target",
-        "hits": 0
+        "hits": 0,
+        "protection": 8
       },
       {
         "id": "open_6",
@@ -743,7 +776,8 @@
         "shape": "cylinder",
         "radius_m": 0.23,
         "kind": "target",
-        "hits": 0
+        "hits": 0,
+        "protection": 8
       },
       {
         "id": "open_10",
@@ -765,7 +799,8 @@
         "shape": "cylinder",
         "radius_m": 0.23,
         "kind": "target",
-        "hits": 0
+        "hits": 0,
+        "protection": 8
       },
       {
         "id": "open_15",
@@ -787,7 +822,8 @@
         "shape": "cylinder",
         "radius_m": 0.23,
         "kind": "target",
-        "hits": 0
+        "hits": 0,
+        "protection": 8
       },
       {
         "id": "cover_0",
@@ -809,7 +845,8 @@
         "shape": "cylinder",
         "radius_m": 0.23,
         "kind": "target",
-        "hits": 0
+        "hits": 0,
+        "protection": 8
       },
       {
         "id": "cover_1",
@@ -831,7 +868,8 @@
         "shape": "cylinder",
         "radius_m": 0.23,
         "kind": "target",
-        "hits": 0
+        "hits": 0,
+        "protection": 8
       },
       {
         "id": "cover_2",
@@ -853,7 +891,8 @@
         "shape": "cylinder",
         "radius_m": 0.23,
         "kind": "target",
-        "hits": 0
+        "hits": 0,
+        "protection": 8
       },
       {
         "id": "cover_3",
@@ -875,7 +914,8 @@
         "shape": "cylinder",
         "radius_m": 0.23,
         "kind": "target",
-        "hits": 0
+        "hits": 0,
+        "protection": 8
       }
     ],
     "actors": [

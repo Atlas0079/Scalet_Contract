@@ -452,7 +452,7 @@ func combat(a, dt: float):
 		else:
 			a.fire_reason = "弹药耗尽"
 		return
-	if grid.raycast(a.position, target.position, a.muzzle_height, target.height * target.definition.chest_height_fraction, "projectile")[1] != null:
+	if SCCombat.projectile_obstruction(grid,a.position,target.position,a.muzzle_height,target.height*target.definition.chest_height_fraction,a.weapon.ammunition.penetration)!=null:
 		SCCombat.stop_firing(a)
 		a.fire_reason = "射线被遮挡"
 		return

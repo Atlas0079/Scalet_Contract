@@ -112,11 +112,12 @@ R 已含 SIA 延迟，射击补偿不得再加一次。自主与远程控制的�
 子弹沿初始三维方向直线飞行，检测目标、掩体和地面。正面弹着图来自真实弹丸，不另抽样误差；被提前截停的子弹不画虚构弹孔。
 测试场重置种子 71093；相同条件可重现，清空靶图不重置随机序列，但释放扳机并按新规则进入重新瞄准。
 
-## 8. 函数与本地验证位置
+## 8. 函数位置与当前验看方式
 
 - simulation/ability_rules.gd：evaluate、_shooting_capabilities。
 - simulation/combat.gd：record_shot、advance_recoil、_advance_recoil_step、stop_firing、_advance_realignment、holding_error。
 - simulation/world.gd：正式交战条件和动作开始时的停火入口。
 - presentation/tactical/tactical_study.gd：set_trigger、cycle_force、cycle_shooting_skill。
 - 配置：data/characters.json、weapons.json、tactical_study.json。
-- 本次新增验证脚本、截图及结果仅保留 ../.art-preview-local/；现有目录已被 .git/info/exclude 忽略。
+- 完整 demo 完成前，在射击场实际操作移动、瞄准、开火、停火及条件切换，验看枪口、弹道、命中和弹着图。自动检查脚本已移除。
+- 预设画面捕获工具保存在本地 ../.art-preview-local/capture-tools/，其固定状态和脚本驱动过程仅用于画面讨论，不作为实操验收。截图和已有测量结果继续仅保留本地。

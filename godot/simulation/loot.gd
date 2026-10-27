@@ -17,6 +17,17 @@ func _init(w):
 	_world = weakref(w)
 	for a in w.actors:
 		a.equipped_id = "weapon:%d" % a.id
+	# Preplaced containers retain the same entity used by collision and combat.
+	for entity in w.entities.values():
+		if not entity.definition.has("loot"): continue
+		var spec: Dictionary = entity.definition.loot
+		var initial: Array = []
+		for record in entity.contents.values():
+			var copy: Dictionary = record.duplicate(true)
+			copy["weapon"] = null
+			initial.append(copy)
+		var object = add(entity.definition.id,entity.definition.label,spec.kind,SCData.cell_of(entity.position),initial)
+		object.searched = spec.searched
 
 
 func item(kind: String, quantity: int = 1, ammo: int = 30) -> Dictionary:
@@ -65,7 +76,7 @@ func add(
 	for i in items:
 		obj.items[i.id] = i
 	if not world.entities.has(id):
-		world.entities[id]=SCEntity.new({"id":id,"label":label,"classification":"fixed" if kind in ["container","case"] else "dropped","position_m":[cell.x+.5,cell.y+.5],"footprint_m":[.4,.4],"bottom_m":0.0,"height_m":.3,"blocks_movement":kind in ["container","case"],"blocks_sight":false,"blocks_projectile":false})
+		world.entities[id]=SCEntity.new({"id":id,"label":label,"classification":"fixed" if kind in ["container","case"] else "dropped","origin":"dropped","installation":"free","mobility":"none" if kind in ["container","case"] else "carry","pickup_mode":"inventory" if kind=="ground" else "none","mass_kg":0.0,"protection":0.0,"damageable":false,"position_m":[cell.x+.5,cell.y+.5],"footprint_m":[.4,.4],"bottom_m":0.0,"height_m":.3,"blocks_movement":kind in ["container","case"],"blocks_sight":false,"blocks_projectile":false})
 	obj["entity"]=world.entities[id]
 	obj.entity.contents=obj.items
 	objects[id] = obj
@@ -651,3 +662,7 @@ func corpse(a):
 	world.entities.erase(id)
 	obj.entity=body
 	body.contents=obj.items
+	body.definition.merge({"origin":"unit_death","classification":"dropped","installation":"free","mobility":"push_drag","pickup_mode":"none","mass_kg":70.0,"height_m":.35,"protection":1.0,"damageable":true,"max_durability":70.0,"destroyed":{"exists":true,"height_m":.2,"protection":0.0,"blocks_movement":false,"blocks_sight":false,"blocks_projectile":true}},true)
+	body.durability=70.0
+	world.grid.revision+=1
+	world.grid.path_cache.clear()

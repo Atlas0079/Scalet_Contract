@@ -4,7 +4,7 @@ Updated: 2026-10-13. This document gives the current project state and routes to
 
 ## Runtime and implementation state
 
-The active project is `godot/`, using GDScript. The default launchers and `godot/project.godot` start the Cabin Main Scene (`presentation/cabin/cabin.tscn`) with Forward+. Standalone maintenance and shooting-range preview launchers explicitly retain Compatibility rendering. Scene names, layers and responsibilities are defined in [design section 16](demo_design.md#16-项目职责与实现边界). The Python simulation in `combat_demo/` remains available for rule comparison. The full battlefield and interface under the current art direction have not yet been built.
+The active project is `godot/`, using GDScript. The default launchers and `godot/project.godot` start the Cabin Main Scene (`presentation/cabin/cabin.tscn`) with Forward+. Standalone maintenance and shooting-range preview launchers explicitly retain Compatibility rendering. Scene names, layers and responsibilities are defined in [design section 16](demo_design.md#16-项目职责与实现边界). The `combat_demo/` directory contains design documents, validation records and asset-authoring tools; runtime simulation and further development use `godot/`. The full battlefield and interface under the current art direction have not yet been built.
 
 Maintenance and the character test range now use SCWorld/SCGrid/SCEntity for spatial state, actors, doors, simulation time and collision. The test range provides animated movement, weapon handling and shooting. Shared weapon/equipment rules include kinetic, thermal and melee categories, layered armor, gas filtering and the all-direction kinetic shield. New weapon/equipment numerical values are initial validation data; their visual/UI integration and balancing remain pending. Ability sources, species conversion and independent skill accounts feed a shared ability snapshot. Consumers use the resulting abilities. Current implementation details and outstanding work are recorded in [configuration](../../godot/LOCAL_CONFIGURATION.md), [character architecture](../../godot/LOCAL_CHARACTER_ARCHITECTURE.md), and [shooting mechanics](../../godot/LOCAL_SHOOTING_FACTORS.md).
 
@@ -146,7 +146,6 @@ The active Godot logic loads maintenance and range scene definitions. Grayport m
 - `godot/simulation/`: world execution, grid, actors, movement, perception, planning, room tasks, loot, combat, skills and ability evaluation.
 - `godot/presentation/tactical/`: character rendering, gait, shooting effects, range targets and range controls.
 - `godot/presentation/interface.gd`: shared ability explanation text.
-- `godot/tests/`: applicable simulation and range verification sources.
 
 ## Engineering agreements
 
@@ -156,4 +155,6 @@ Explain intended code changes and obtain the user's agreement before implementat
 
 ## Verification
 
-[Migration verification](../../godot/LOCAL_MIGRATION.md) and [demo verification](validation.md) record the results and limitations of their stated runs. Use the current configuration and relevant checks for new work; dated results do not prove newly designed presentation or features are complete.
+Until the full demo is complete, verify through normal launchers, actual player input and visual inspection of the running scenes. The automated assertion suites, simulation fixtures and batch regression scripts have been removed; do not add or run such suites during this stage. Keep runtime configuration validation and error handling. Four preset picture/frame capture tools remain local in `.art-preview-local/capture-tools/`; their scripted setup is not evidence of player-operated acceptance.
+
+[Migration verification](../../godot/LOCAL_MIGRATION.md) and [demo verification](validation.md) retain the results and limitations of their stated runs. Use the current configuration and actual scene operation for new work; dated results do not prove newly designed presentation or features are complete.

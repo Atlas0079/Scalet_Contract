@@ -303,7 +303,8 @@ func raycast(
 	start_height: float = 1.65,
 	end_height: float = 1.65,
 	kind: String = "sight",
-	ignore_targets := false
+	ignore_targets := false,
+	ignored_parts: Dictionary = {}
 ) -> Array:
 	var origin := Vector3(start.x,start_height,start.y)
 	var finish := Vector3(end.x,end_height,end.y)
@@ -329,9 +330,12 @@ func raycast(
 		var hit := SCCombat.box_hit_fraction(origin,finish,AABB(Vector3(rect.position.x,0,rect.position.y),Vector3(rect.size.x,f.height,rect.size.y)))
 		if hit>=0 and hit<=best: best=hit; found=f
 	for entity in entities.values():
-		if entity.actor != null or ignore_targets and entity.definition.get("kind","")=="target" or not entity.blocks("sight" if kind=="sight" else "projectile"): continue
-		var hit: float = entity.ray_fraction(origin,finish)
-		if hit>=0 and hit<=best: best=hit; found=entity.definition
+		if entity.actor != null and entity.actor.alive or ignore_targets and entity.definition.get("kind","")=="target" or not entity.blocks("sight" if kind=="sight" else "projectile"): continue
+		var result: Dictionary = entity.ray_hit(origin,finish,"sight" if kind=="sight" else "projectile",ignored_parts)
+		if not result.is_empty() and result.fraction<=best:
+			best=result.fraction
+			found=entity.definition.duplicate(false)
+			found["ray_hit"]=result
 	return [best,found]
 
 

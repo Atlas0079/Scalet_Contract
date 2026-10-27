@@ -230,6 +230,7 @@ static func projectile(origin: Vector3, direction: Vector3, weapon: Dictionary) 
 		"timer": tracer.fade_seconds, "duration": tracer.fade_seconds,
 		"tracer_length": tracer.length_m, "tracer_brightness": tracer.brightness,
 		"tracer_visible": (int(weapon.shots_fired) - 1) % int(weapon.ammunition.tracer_every_n_shots) == 0,
+		"penetrated_parts": {}, "impacts": [],
 		"finished": false, "blocked": false, "age": 0.0, "afterglow": 0.0,
 		"hit_actor_id": null, "hit_part": null, "damage": 0.0, "near_misses": [], "suppressed": []
 	}
@@ -292,56 +293,127 @@ static func ground_fraction(h0: float, h1: float) -> float:
 	return h0 / (h0 - h1) if h1 <= 0.0 else -1.0
 
 
+static func remaining_penetration(incoming: float, resistance: float) -> float:
+	if resistance<=0: return incoming
+	return incoming-resistance if incoming>resistance else -1.0
+
+# Non-mutating line-of-fire query; it conservatively uses the current structure.
+static func projectile_obstruction(grid: SCGrid, start: Vector2, end: Vector2, h0: float, h1: float, penetration: float) -> Variant:
+	var ignored: Dictionary = {}
+	while true:
+		var collision := grid.raycast(start,end,h0,h1,"projectile",false,ignored)
+		if collision[1]==null: return null
+		var feature: Dictionary = collision[1]
+		var part: Dictionary = feature.get("ray_hit",{})
+		if not grid.entities.has(feature.get("id","")) or part.is_empty(): return feature
+		var next := remaining_penetration(penetration,part.protection)
+		if next<0: return feature
+		penetration=next
+		ignored[part.contact_key]=true
+	return null
+
+# Both combat and the range consume this path. Parts are charged once per straight projectile.
+static func advance_path(shot: Dictionary, dt: float, grid: SCGrid, targets: Array) -> Dictionary:
+	shot.age+=dt
+	var remaining := dt
+	var elapsed := 0.0
+	var result: Dictionary = {}
+	while remaining>0.000000001 and not shot.finished:
+		var start: Vector2 = shot.end
+		var distance: float = minf(shot.speed*remaining,maxf(0.0,shot.range-shot.travelled))
+		if distance<=0.000000001:
+			shot.finished=true
+			break
+		var segment_time: float = distance/shot.speed
+		var end: Vector2 = start+shot.direction*shot.horizontal_factor*distance
+		var h0: float = shot.height
+		var h1: float = h0+shot.direction_3d.y*distance
+		var collision: Array = grid.raycast(start,end,h0,h1,"projectile",true,shot.penetrated_parts)
+		var best: float = collision[0]
+		var blocked: bool = collision[1]!=null
+		var ground: float = ground_fraction(h0,h1)
+		if ground>=0 and ground<=best:
+			best=ground
+			collision=[ground,{"label":"地面"}]
+			blocked=true
+		var target: Dictionary = {}
+		for entry in targets:
+			var p0: Vector2 = entry.previous.lerp(entry.position,clampf(elapsed/maxf(dt,.000000001),0,1))
+			var p1: Vector2 = entry.previous.lerp(entry.position,clampf((elapsed+segment_time)/maxf(dt,.000000001),0,1))
+			var at: float = cylinder_hit_fraction(start,end,h0,h1,p0,p1,entry.radius,0,entry.height)
+			if at>=0 and (at<best or not blocked and at<=best):
+				best=at
+				target=entry
+				blocked=false
+		var used: float = segment_time*best
+		shot.end=start.lerp(end,best)
+		shot.height=lerpf(h0,h1,best)
+		shot.travelled+=distance*best
+		elapsed+=used
+		remaining=maxf(0.0,remaining-used)
+		if not target.is_empty():
+			shot.finished=true
+			result={"target":target,"blocked":false,"label":target.label,"position":shot.end,"height":shot.height}
+			break
+		if blocked:
+			var feature: Dictionary = collision[1]
+			var entity: SCEntity = grid.entities.get(feature.get("id",""))
+			var penetrated := false
+			var part: Dictionary = feature.get("ray_hit",{})
+			if entity!=null and not part.is_empty():
+				var resistance: float = part.protection
+				var incoming: float = shot.penetration
+				var damage: float = shot.damage_value
+				var before: bool = entity.ruined
+				entity.damage(damage)
+				if before!=entity.ruined:
+					grid.revision+=1
+					grid.path_cache.clear()
+				var next_penetration := remaining_penetration(incoming,resistance)
+				if next_penetration>=0:
+					penetrated=true
+					shot.penetrated_parts[part.contact_key]=true
+					shot.penetration=next_penetration
+					if incoming>0: shot.damage_value=damage*(shot.penetration/incoming)
+				shot.impacts.append({"entity_id":entity.definition.id,"part_id":part.part_id,"position":shot.end,"height":shot.height,"penetrated":penetrated,"protection":resistance,"remaining_penetration":shot.penetration,"remaining_damage":shot.damage_value})
+			if not penetrated:
+				shot.finished=true
+				shot.blocked=true
+				result={"target":{},"blocked":true,"label":feature.get("label","地形"),"position":shot.end,"height":shot.height}
+				break
+			continue
+		remaining=maxf(0.0,remaining-segment_time+used)
+		if shot.travelled>=shot.range-.00000001: shot.finished=true
+	if shot.finished:
+		shot.afterglow=maxf(0.0,dt-elapsed)
+		shot.timer=maxf(0.0,shot.duration-shot.afterglow)
+		if not result.is_empty(): result["age"]=shot.afterglow
+	return result
+
 static func advance_shot(shot: Dictionary, dt: float, grid, actors: Array, rng: RandomNumberGenerator):
 	var start: Vector2 = shot.end
-	var length := minf(shot.speed * dt, shot.range - shot.travelled)
-	var delta: Vector2 = shot.direction * shot.horizontal_factor * length
-	var end := start + delta
-	var h0: float = shot.height
-	var h1: float = h0 + shot.direction_3d.y * length
-	var wall: Array = grid.raycast(start, end, h0, h1, "projectile")
-	var best_t: float = wall[0]
-	var blocked: bool = wall[1] != null
-	var ground := ground_fraction(h0, h1)
-	if ground >= 0.0 and ground <= best_t:
-		best_t = ground
-		blocked = true
-	var best = null
-	var flight_fraction := length / maxf(shot.speed * dt, 0.000001)
+	var old_distance: float = shot.travelled
+	var targets: Array = []
 	for a in actors:
-		if a.id == shot.shooter_id: continue
-		var actor_end: Vector2 = a.previous_position.lerp(a.position, flight_fraction)
-		var body_height: float = grid.entities[a.identity].height() if grid.entities.has(a.identity) else a.height
-		var t := cylinder_hit_fraction(start, end, h0, h1, a.previous_position, actor_end, a.radius, 0.0, body_height)
-		if t >= 0.0 and (t < best_t or not blocked and t <= best_t):
-			best_t = t
-			best = a
-	shot.end = start + delta * best_t
-	shot.travelled += length * best_t
-	shot.height = lerpf(h0, h1, best_t)
-	shot.age += dt
-	shot.near_misses = []
-	if best != null:
-		var hit: Dictionary = best.resolve_hit(body_region(shot.height, best, rng), shot.damage_value, rng, shot.attack_category, shot.penetration)
-		best.hit_flash = 0.12
-		shot.hit_actor_id = best.id
-		shot.hit_part = hit.part_id
-		shot.damage = hit.damage
-		shot.finished = true
-	elif blocked:
-		if wall[1]!=null and grid.entities.has(wall[1].get("id","")): grid.entities[wall[1].id].damage(shot.damage_value)
-		shot.blocked = true
-		shot.finished = true
-	elif shot.travelled >= shot.range - 0.000001:
-		shot.finished = true
-	if shot.finished:
-		shot.afterglow = maxf(0.0, dt - length * best_t / shot.speed)
-		shot.timer = maxf(0.0, shot.duration - shot.afterglow)
+		if a.id==shot.shooter_id or not a.alive: continue
+		targets.append({"actor":a,"previous":a.previous_position,"position":a.position,"radius":a.radius,"height":a.height,"label":a.actor_name})
+	var result := advance_path(shot,dt,grid,targets)
+	if not result.is_empty() and not result.target.is_empty():
+		var best: SCActor = result.target.actor
+		var hit: Dictionary = best.resolve_hit(body_region(shot.height,best,rng),shot.damage_value,rng,shot.attack_category,shot.penetration)
+		best.hit_flash=.12
+		if not best.alive and best.world!=null and best.world.loot!=null: best.world.loot.corpse(best)
+		shot.hit_actor_id=best.id
+		shot.hit_part=hit.part_id
+		shot.damage=hit.damage
+	shot.near_misses=[]
+	var fraction: float = clampf((shot.travelled-old_distance)/maxf(shot.speed*dt,.000000001),0,1)
 	for a in actors:
-		if not a.alive or a.id == shot.shooter_id or a.id == shot.hit_actor_id or a.id in shot.suppressed: continue
-		var actor_end: Vector2 = a.previous_position.lerp(a.position, flight_fraction * best_t)
-		var miss := cylinder_hit_fraction(start, shot.end, h0, shot.height, a.previous_position, actor_end, a.radius + 0.2, 0.0, a.height + 0.2)
-		if miss >= 0.0:
+		if not a.alive or a.id==shot.shooter_id or a.id==shot.hit_actor_id or a.id in shot.suppressed: continue
+		var actor_end: Vector2 = a.previous_position.lerp(a.position,fraction)
+		var h0: float = shot.height-shot.direction_3d.y*(shot.travelled-old_distance)
+		var miss := cylinder_hit_fraction(start,shot.end,h0,shot.height,a.previous_position,actor_end,a.radius+.2,0,a.height+.2)
+		if miss>=0:
 			shot.near_misses.append(a.id)
 			shot.suppressed.append(a.id)
 
@@ -379,35 +451,16 @@ static func reticle_bounds(actor, muzzle: Vector3, forward: Vector3, target: Vec
 # Static-target laboratory trajectories use the same grid and collision primitives
 # as actor combat. Renderers consume this result to draw impacts and target paper.
 static func advance_training_shot(shot: Dictionary, dt: float, grid: SCGrid, targets: Array) -> Dictionary:
-	shot.age+=dt
 	if shot.finished:
 		shot.afterglow+=dt
 		return {}
-	var distance := minf(shot.speed*dt,shot.range-shot.travelled)
-	var start: Vector2 = shot.end
-	var end: Vector2 = start+shot.direction*shot.horizontal_factor*distance
-	var h0: float = shot.height
-	var h1: float = h0+shot.direction_3d.y*distance
-	var collision := grid.raycast(start,end,h0,h1,"projectile",true)
-	var best: float = collision[0]
-	var blocked: bool = collision[1]!=null
-	var label: String = collision[1].get("label","地形") if blocked else ""
-	var ground := ground_fraction(h0,h1)
-	if ground>=0 and ground<=best: best=ground; blocked=true; label="地面"
-	var target: Dictionary = {}
+	var descriptors: Array = []
 	for entry in targets:
-		var fraction := cylinder_hit_fraction(start,end,h0,h1,entry.position,entry.position,entry.radius,0,entry.height)
-		if fraction>=0 and (fraction<best or not blocked and fraction<=best): best=fraction; blocked=false; target=entry
-	shot.travelled+=distance*best
-	shot.end=start.lerp(end,best)
-	shot.height=lerpf(h0,h1,best)
-	var result := {}
-	if blocked or not target.is_empty():
-		if not target.is_empty(): label=target.label; shot["hit_target_id"]=target.id
-		shot.finished=true
-		shot.blocked=blocked
-		shot["stop_label"]=label+"截停"
-		result={"target":target,"blocked":blocked,"label":label,"position":shot.end,"height":shot.height,"age":maxf(0,dt-distance*best/shot.speed)}
-	if shot.travelled>=shot.range-.00001: shot.finished=true
-	if shot.finished: shot.afterglow+=maxf(0,dt-distance*best/shot.speed)
+		descriptors.append({"entry":entry,"previous":entry.position,"position":entry.position,"radius":entry.radius,"height":entry.height,"label":entry.label})
+	var result := advance_path(shot,dt,grid,descriptors)
+	if not result.is_empty():
+		if not result.target.is_empty():
+			result.target=result.target.entry
+			shot["hit_target_id"]=result.target.id
+		shot["stop_label"]=result.label+"截停"
 	return result

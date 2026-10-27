@@ -16,13 +16,14 @@ var durability := 0.0
 var contents: Dictionary = {}
 var door: Dictionary = {}
 var hits := 0
+var ruined := false
 
 func _init(spec: Dictionary, character: SCActor = null):
 	definition = spec.duplicate(true)
 	actor = character
 	_position = SCCombat.pair(spec.position_m)
 	facing = float(spec.get("facing_radians",0.0))
-	durability = float(spec.get("max_durability",0.0))
+	durability = float(spec.get("durability",spec.get("max_durability",0.0)))
 	contents = spec.get("contents",{}).duplicate(true)
 	if spec.has("door"):
 		door = spec.door.duplicate(true)
@@ -40,7 +41,7 @@ func bottom() -> float:
 	return ground+float(definition.get("bottom_m",0.0))
 
 func height() -> float:
-	return (.35 if not actor.alive else actor.height) if actor != null else float(definition.height_m)
+	return (float(definition.get("height_m",.35)) if not actor.alive else actor.height) if actor != null else float(definition.height_m)
 
 func collision_box() -> AABB:
 	var rect := footprint()
@@ -71,25 +72,56 @@ func advance(dt: float):
 	if is_equal_approx(door.progress,target): door.state = "open" if door.target_open else "closed"
 
 func damage(amount: float):
-	if not definition.get("damageable",false): return
+	if ruined or not definition.get("damageable",false): return
 	durability = maxf(0,durability-amount)
 	if durability>0: return
+	ruined = true
 	var result: Dictionary = definition.get("destroyed",{})
-	for key in ["blocks_movement","blocks_sight","blocks_projectile","height_m"]:
+	for key in ["blocks_movement","blocks_sight","blocks_projectile","height_m","protection","structure","condition"]:
 		if result.has(key): definition[key] = result[key]
 	exists = result.get("exists",true)
 	if not door.is_empty(): door.faulted = true
 
 
-func ray_fraction(start: Vector3, end: Vector3) -> float:
+# The broad footprint remains conservative for movement; rays use the actual solid parts.
+func solid_parts() -> Array:
+	if not door.is_empty() or actor!=null: return []
+	return definition.get("structure",{}).get("parts",[])
+
+func ray_hit(start: Vector3, end: Vector3, kind := "projectile", ignored: Dictionary = {}) -> Dictionary:
+	if not blocks(kind): return {}
+	var parts = solid_parts()
+	if not parts.is_empty():
+		var a = Vector2(start.x-position.x,start.z-position.y).rotated(-facing)
+		var b = Vector2(end.x-position.x,end.z-position.y).rotated(-facing)
+		var size = footprint().size
+		var best: Dictionary = {}
+		for part in parts:
+			var key: String = definition.id+":"+part.id
+			if ignored.has(key) or not part.get("blocks_"+kind,false): continue
+			var offset: Array = part.offset_m
+			var dimensions: Array = part.size_m
+			var box = AABB(Vector3(float(offset[0])-size.x*.5,bottom()+float(offset[1]),float(offset[2])-size.y*.5),Vector3(dimensions[0],dimensions[1],dimensions[2]))
+			var fraction = SCCombat.box_hit_fraction(Vector3(a.x,start.y,a.y),Vector3(b.x,end.y,b.y),box)
+			if fraction>=0 and (best.is_empty() or fraction<best.fraction): best={"fraction":fraction,"part_id":part.id,"protection":float(part.protection),"contact_key":key}
+		return best
+	var key: String = definition.id+":body"
+	if ignored.has(key): return {}
+	var hit: float
 	if definition.get("shape","")=="cylinder":
-		return SCCombat.cylinder_hit_fraction(Vector2(start.x,start.z),Vector2(end.x,end.z),start.y,end.y,position,position,definition.radius_m,bottom(),bottom()+height())
-	var a := Vector2(start.x-position.x,start.z-position.y).rotated(-facing)
-	var b := Vector2(end.x-position.x,end.z-position.y).rotated(-facing)
-	var box := collision_box()
-	box.position.x-=position.x
-	box.position.z-=position.y
-	return SCCombat.box_hit_fraction(Vector3(a.x,start.y,a.y),Vector3(b.x,end.y,b.y),box)
+		hit=SCCombat.cylinder_hit_fraction(Vector2(start.x,start.z),Vector2(end.x,end.z),start.y,end.y,position,position,definition.radius_m,bottom(),bottom()+height())
+	else:
+		var a = Vector2(start.x-position.x,start.z-position.y).rotated(-facing)
+		var b = Vector2(end.x-position.x,end.z-position.y).rotated(-facing)
+		var box = collision_box()
+		box.position.x-=position.x
+		box.position.z-=position.y
+		hit=SCCombat.box_hit_fraction(Vector3(a.x,start.y,a.y),Vector3(b.x,end.y,b.y),box)
+	return {} if hit<0 else {"fraction":hit,"part_id":"body","protection":float(definition.get("protection",1.0 if actor!=null and not actor.alive else INF)),"contact_key":key}
+
+func ray_fraction(start: Vector3, end: Vector3) -> float:
+	var result = ray_hit(start,end)
+	return -1.0 if result.is_empty() else result.fraction
 
 func move_fraction(start: Vector2, end: Vector2, radius: float, body_height: float, ground: float) -> float:
 	if actor!=null or definition.get("shape","")=="cylinder":

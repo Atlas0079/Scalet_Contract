@@ -361,12 +361,32 @@ static func validate_scenes(doc: Dictionary) -> PackedStringArray:
 		fields(spec.terrain,{"passable":"bool","movement_multiplier":"positive","ground_height_m":"number","cover_height_m":"nonnegative","blocks_sight":"bool","blocks_projectile":"bool"},"scenes."+name+".terrain",p)
 		var ids := {}
 		for entity in spec.entities:
-			if not fields(entity,{"id":"string","label":"string","classification":"string","position_m":"array","footprint_m":"array","bottom_m":"nonnegative","height_m":"positive","blocks_movement":"bool","blocks_sight":"bool","blocks_projectile":"bool"},"scenes."+name+".entity",p): continue
+			if not fields(entity,{"id":"string","label":"string","classification":"string","position_m":"array","footprint_m":"array","bottom_m":"nonnegative","height_m":"positive","blocks_movement":"bool","blocks_sight":"bool","blocks_projectile":"bool","protection":"nonnegative"},"scenes."+name+".entity",p): continue
 			if entity.classification not in ["fixed","dropped"] or ids.has(entity.id): p.append("scenes."+name+": invalid entity classification or duplicate ID")
 			ids[entity.id]=true
 			coordinates(entity.position_m,2,"scene.entity.position_m",p)
 			coordinates(entity.footprint_m,2,"scene.entity.footprint_m",p)
 			if entity.footprint_m.any(func(v): return v<=0): p.append("scene.entity: invalid footprint")
+			if entity.has("structure"):
+				var shape: Dictionary = entity.structure
+				if fields(shape,{"kind":"string","parts":"list"},"scene.structure",p):
+					if shape.kind not in ["solid","slab","frame","pile"] or shape.parts.is_empty(): p.append("scene.structure: invalid kind or empty parts")
+					var parts := {}
+					for part in shape.parts:
+						if not fields(part,{"id":"string","offset_m":"array","size_m":"array","protection":"nonnegative","blocks_sight":"bool","blocks_projectile":"bool"},"scene.part",p): continue
+						if parts.has(part.id): p.append("scene.part: duplicate id")
+						parts[part.id]=true
+						if coordinates(part.offset_m,3,"scene.part.offset",p) and coordinates(part.size_m,3,"scene.part.size",p):
+							for axis in range(3):
+								if part.offset_m[axis]<0 or part.size_m[axis]<=0 or part.offset_m[axis]+part.size_m[axis]>[entity.footprint_m[0],entity.height_m,entity.footprint_m[1]][axis]+.000001: p.append("scene.part: outside object bounds")
+			if entity.has("loot"):
+				if fields(entity.loot,{"kind":"string","searched":"bool"},"scene.entity.loot",p) and entity.loot.kind not in ["container","case","corpse","ground"]: p.append("scene.entity: invalid loot kind")
+				if not entity.get("contents") is Dictionary: p.append("scene.entity: missing contents")
+				else:
+					for id in entity.contents:
+						var item: Dictionary = entity.contents[id]
+						if fields(item,{"id":"string","kind":"string","quantity":"count"},"scene.entity.contents",p):
+							if id!=item.id or not catalog.loot_kinds.has(item.kind) or item.quantity<=0: p.append("scene.entity: invalid container item")
 			if entity.has("door"):
 				fields(entity.door,{"placement":"string","state":"string","opening_seconds":"positive","closing_seconds":"positive","opening_height_m":"positive","locked":"bool","powered":"bool","faulted":"bool"},"scene.door",p)
 				if entity.door.placement not in ["edge","cell"] or entity.classification!="fixed": p.append("scene.door: invalid placement")
