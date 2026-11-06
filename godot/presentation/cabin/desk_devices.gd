@@ -17,10 +17,15 @@ var sleep_button: Node3D
 var models: Dictionary = {}
 var display_view: SubViewport
 var phone: Node3D
+var clock_support_y := 1.29541
+var mesh_queries: Dictionary = {}
 
 func _ready():
  build_clock()
  build_desktop_props()
+ for kind in models:
+  models[kind]["meshes"] = models[kind].node.find_children("*","MeshInstance3D",true,false)
+  for node in models[kind].meshes: cache_mesh_query(node.mesh)
  alarm_audio = AudioStreamPlayer.new()
  alarm_audio.stream = preload("res://assets/ready.wav")
  add_child(alarm_audio)
@@ -58,7 +63,7 @@ func place_model(scene: PackedScene, at: Vector3, width: float, kind: String) ->
  return model
 
 func build_clock():
- var clock := place_model(CLOCK_MODEL,Vector3(0,1.29541,0.08),0.34,"clock")
+ var clock := place_model(CLOCK_MODEL,Vector3(0,clock_support_y,0.08),0.34,"clock")
  # Bind authored buttons: SLEEP, ALARM, FAST, SLOW. TIME cannot edit the world clock.
  var bindings := {"Buttons Circle":"sleep","Buttons Circle_002":"alarm","Buttons Circle_004":"hour","Buttons Circle_005":"minute"}
  for node in clock.find_children("*","MeshInstance3D",true,false):
@@ -77,7 +82,7 @@ func build_clock():
    display_view = SubViewport.new()
    display_view.size = Vector2i(480,192)
    display_view.disable_3d = true
-   display_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+   display_view.render_target_update_mode = SubViewport.UPDATE_ONCE
    add_child(display_view)
    var background := ColorRect.new()
    background.size = display_view.size
@@ -101,32 +106,42 @@ func display_label(at: Vector2, font_size: int, color: Color) -> Label:
  display_view.add_child(text)
  return text
 
+func cache_mesh_query(mesh: Mesh) -> Dictionary:
+ if mesh == null: return {}
+ var id := mesh.get_instance_id()
+ if mesh_queries.has(id): return mesh_queries[id]
+ var bounds := mesh.get_aabb()
+ var centre := bounds.get_center()
+ var ray_scale := maxf(bounds.size.length(),0.0001)
+ var faces := mesh.get_faces()
+ for i in range(faces.size()): faces[i] = (faces[i]-centre)/ray_scale
+ var tree := TriangleMesh.new()
+ if faces.is_empty() or not tree.create_from_faces(faces): return {}
+ var result := {"bounds":bounds,"centre":centre,"scale":ray_scale,"tree":tree}
+ mesh_queries[id] = result
+ var changed := invalidate_mesh_query.bind(id)
+ if not mesh.changed.is_connected(changed): mesh.changed.connect(changed)
+ return result
+
+func invalidate_mesh_query(id: int):
+ mesh_queries.erase(id)
+
+func model_meshes(kind: String) -> Array:
+ return models[kind].meshes
+
 func mesh_hit(camera: Camera3D, point: Vector2, node: MeshInstance3D) -> Variant:
+ if not node.is_visible_in_tree() or node.mesh == null: return null
+ var query := cache_mesh_query(node.mesh)
+ if query.is_empty(): return null
  var inverse := node.global_transform.affine_inverse()
  var origin := inverse*camera.project_ray_origin(point)
  var direction := (inverse.basis*camera.project_ray_normal(point)).normalized()
  var end := origin+inverse.basis*camera.project_ray_normal(point)*camera.far
- if not node.get_aabb().intersects_segment(origin,end): return null
- # Normalize authored units so tiny source triangles exceed the ray epsilon.
- var centre := node.get_aabb().get_center()
- var ray_scale := maxf(node.get_aabb().size.length(),0.0001)
- origin = (origin-centre)/ray_scale
- var nearest: Variant = null
- var distance := INF
- for surface in range(node.mesh.get_surface_count()):
-  var arrays := node.mesh.surface_get_arrays(surface)
-  var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX].duplicate()
-  for i in range(vertices.size()):vertices[i] = (vertices[i]-centre)/ray_scale
-  var indices := PackedInt32Array()
-  if arrays[Mesh.ARRAY_INDEX]!=null:indices = arrays[Mesh.ARRAY_INDEX]
-  if indices.is_empty():
-   for i in range(vertices.size()):indices.append(i)
-  for i in range(0,indices.size(),3):
-   var at: Variant = Geometry3D.ray_intersects_triangle(origin,direction,vertices[indices[i]],vertices[indices[i+1]],vertices[indices[i+2]])
-   if at != null and origin.distance_squared_to(at) < distance:
-    distance = origin.distance_squared_to(at)
-    nearest = node.to_global(at*ray_scale+centre)
- return nearest
+ if not query.bounds.intersects_segment(origin,end): return null
+ # A normalized native BVH retains the authored triangles without rebuilding
+ # surfaces or traversing every face for each pointer/centre-ray query.
+ var hit: Dictionary = query.tree.intersect_ray((origin-query.centre)/query.scale,direction)
+ return node.to_global(hit.position*query.scale+query.centre) if not hit.is_empty() else null
 
 func hit(camera: Camera3D, point: Vector2) -> Dictionary:
  var phone_key: String = phone.contact(self,camera,point)
@@ -146,7 +161,7 @@ func body_hit(camera: Camera3D, point: Vector2) -> String:
  for kind in models:
   if not focusable(kind):continue
   var model: Node3D = models[kind].node
-  for node in model.find_children("*","MeshInstance3D",true,false):
+  for node in model_meshes(kind):
    var at: Variant = mesh_hit(camera,point,node)
    if at != null:
     var d: float = camera.global_position.distance_squared_to(at)
@@ -187,5 +202,9 @@ func read_world_time(seconds: float):
 
 func refresh():
  if clock_text:
-  clock_text.text = "--:--" if clock_seconds < 0 else "%02d:%02d" % [int(clock_seconds/3600)%24,int(clock_seconds/60)%60]
-  alarm_text.text = "%s %02d:%02d" % ["AL" if alarm_enabled else "OFF",alarm_minutes/60,alarm_minutes%60]
+  var clock_value := "--:--" if clock_seconds < 0 else "%02d:%02d" % [int(clock_seconds/3600)%24,int(clock_seconds/60)%60]
+  var alarm_value := "%s %02d:%02d" % ["AL" if alarm_enabled else "OFF",alarm_minutes/60,alarm_minutes%60]
+  if clock_text.text != clock_value or alarm_text.text != alarm_value:
+   clock_text.text = clock_value
+   alarm_text.text = alarm_value
+   display_view.render_target_update_mode = SubViewport.UPDATE_ONCE

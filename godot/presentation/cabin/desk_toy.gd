@@ -16,6 +16,7 @@ func _ready():
  var toward := Vector3(0,1.08965,1.42)-global_position
  rotation.y = atan2(toward.x,toward.z)
  build_duck()
+ set_process(false)
 
 func finish(kind: int,pose:=Transform3D.IDENTITY,source: Texture2D=SOURCE) -> ShaderMaterial:
  var mat:=ShaderMaterial.new();mat.shader=SURFACE
@@ -114,9 +115,16 @@ func build_spring():
  spring_mesh.skin=skin;spring_mesh.skeleton=spring_mesh.get_path_to(spring_rig)
  spring_mesh.custom_aabb=AABB(Vector3(-.020,.005,-.020),Vector3(.04,.035,.04))
 
-func poke():speed=clampf(speed+3.8,-5.0,5.0)
+func poke():
+ speed=clampf(speed+3.8,-5.0,5.0)
+ set_process(true)
 func activity() -> float:return absf(angle)+absf(speed)*.05
 func _process(delta: float):
  var dt:=minf(delta,.05);speed+=(-90.0*angle-5.0*speed)*dt;angle=clampf(angle+speed*dt,-.45,.45)
  var rotation_:=Vector3(angle*.7,0,angle);moving[0].rotation=rotation_
  spring_rig.set_bone_pose_rotation(1,Basis.from_euler(rotation_).get_rotation_quaternion())
+ if absf(angle)<0.0001 and absf(speed)<0.001:
+  angle=0.0;speed=0.0
+  moving[0].rotation=Vector3.ZERO
+  spring_rig.set_bone_pose_rotation(1,Quaternion.IDENTITY)
+  set_process(false)

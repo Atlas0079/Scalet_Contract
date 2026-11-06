@@ -31,11 +31,24 @@ func _ready():
   var mat:=ShaderMaterial.new();mat.shader=detail_shader
   mat.set_shader_parameter("detail_atlas",atlas);mat.set_shader_parameter("material_band",band)
   materials[["rubber","tan","brass","black"][band]]=mat
+ var background_shader:=preload("res://presentation/cabin/background_surface.gdshader")
+ for key in materials.keys():
+  var mat:=ShaderMaterial.new();mat.shader=background_shader
+  if key in ["steel","paint"]:
+   mat.set_shader_parameter("color_texture",preload("res://assets/environment/cabin_shell/textures/background_plate_color.jpg"))
+   mat.set_shader_parameter("tint",Color(.75,.75,.75) if key=="steel" else Color(.65,.68,.67))
+  else:
+   var band: int=["rubber","tan","brass","black"].find(key)
+   mat.set_shader_parameter("color_texture",preload("res://assets/environment/cabin_shell/textures/background_service_materials.png"))
+   mat.set_shader_parameter("material_band",band)
+   var shade: float=[.65,.17,.45,.55][band]
+   mat.set_shader_parameter("tint",Color(shade,shade,shade))
+  materials["background_"+key]=mat
  for key in materials:
   var surface:=SurfaceTool.new();surface.begin(Mesh.PRIMITIVE_TRIANGLES);groups[key]=surface
- box(Vector3(2.28,.08,2.62),Vector3(0,-.045,.51))
- box(Vector3(2.28,1.74,.06),Vector3(0,.87,-.77))
- box(Vector3(2.28,1.74,.06),Vector3(0,.87,1.79))
+ box(Vector3(2.28,.08,2.62),Vector3(0,-.045,.51),"background_steel")
+ box(Vector3(2.28,1.74,.06),Vector3(0,.87,-.77),"background_steel")
+ box(Vector3(2.28,1.74,.06),Vector3(0,.87,1.79),"background_steel")
  box(Vector3(.06,1.74,2.62),Vector3(-1.11,.87,.51))
  box(Vector3(.06,1.74,2.62),Vector3(1.11,.87,.51))
  box(Vector3(2.28,.06,2.62),Vector3(0,1.74,.51))
@@ -59,7 +72,7 @@ func _ready():
   var node:=MeshInstance3D.new();node.name="Structure_"+key;node.mesh=mesh;node.material_override=materials[key];add_child(node)
 
 func append_mesh(mesh: Mesh, pose: Transform3D, kind: String):
- var surface: SurfaceTool=groups[kind]
+ var surface: SurfaceTool=groups["background_"+kind if coarse_geometry else kind]
  if decor_side!=0.0:pose=side_frame(decor_side)*pose
  var normal_pose:=pose.basis.inverse().transposed()
  for s in range(mesh.get_surface_count()):
@@ -165,7 +178,7 @@ func tube(points: PackedVector3Array, radius: float, kind:="rubber",prepared:=fa
  for i in range(raw.size()):
   if baked.is_empty() or raw[i].distance_to(baked[-1])>radius*.012:baked.append(raw[i])
   elif i==raw.size()-1:baked[-1]=raw[i]
- var surface: SurfaceTool=groups[kind]
+ var surface: SurfaceTool=groups["background_"+kind if coarse_geometry else kind]
  var sides:=12 if coarse_geometry else (24 if radius>=.011 else 16)
  var rings: Array[PackedVector3Array]=[];var normals: Array[PackedVector3Array]=[]
  var previous:=Vector3.ZERO;var previous_direction:=Vector3.ZERO;var distance:=0.0;var lengths:=[]

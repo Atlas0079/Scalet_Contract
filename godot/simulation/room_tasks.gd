@@ -8,43 +8,32 @@ static func room_angle(grid: SCGrid, room: String, c: Vector2i) -> float:
 	return delta.angle() if delta.length_squared() > 0 else -PI / 2.0
 
 
-static func fill_slots(g, candidates: Array, base: Vector2i, zone: String, radius: float) -> Array:
-	var allowed = g.zones[zone].cells
-	var pool = allowed.keys().filter(func(c): return g.walkable(c))
-	pool.sort_custom(
-		func(a, b):
-			var da = Vector2(a).distance_squared_to(Vector2(base))
-			var db = Vector2(b).distance_squared_to(Vector2(base))
-			return da < db or da == db and SCData.cell_less(a, b)
-	)
-	var result = []
+static func fill_slots(p, a, candidates: Array, base: Vector2i, zone, radius: float) -> Array:
+	var g=p.world.grid
+	var snapshot: Dictionary=g.capture_navigation(p.world.perception if p.world.is_controlled(a) else null)
+	var unique: Dictionary={}
+	for candidate in candidates+[base]:
+		var reach:=maxi(3,ceili(radius))
+		for y in range(candidate.y-reach,candidate.y+reach+1):
+			for x in range(candidate.x-reach,candidate.x+reach+1):
+				var c:=Vector2i(x,y)
+				if g.zone_id(c)==zone and g.snapshot_walkable(snapshot,c):unique[c]=true
+	var pool: Array=unique.keys()
+	pool.sort_custom(func(a,b):return Vector2(a).distance_squared_to(Vector2(base))<Vector2(b).distance_squared_to(Vector2(base)) or Vector2(a).distance_squared_to(Vector2(base))==Vector2(b).distance_squared_to(Vector2(base)) and SCData.cell_less(a,b))
+	var options: Dictionary={"start":base}
+	if zone!=null:options.zone=zone
+	var query: Dictionary=p.cost_query(a,pool,options)
+	if query.state!="complete":return []
+	var result: Array=[]
 	for candidate in candidates:
-		var nearby = pool.filter(
-			func(c): return Vector2(c).distance_to(Vector2(candidate)) <= radius
-		)
-		nearby.sort_custom(
-			func(a, b):
-				var da = Vector2(a).distance_squared_to(Vector2(candidate))
-				var db = Vector2(b).distance_squared_to(Vector2(candidate))
-				return da < db or da == db and SCData.cell_less(a, b)
-		)
-		var options = [candidate]
-		options.append_array(nearby)
-		for c in options:
-			if (
-				c not in result
-				and allowed.has(c)
-				and g.walkable(c)
-				and not g.find_path(base, c, allowed).is_empty()
-			):
-				result.append(c)
-				break
+		var nearby: Array=pool.filter(func(c):return Vector2(c).distance_to(Vector2(candidate))<=radius)
+		nearby.sort_custom(func(a,b):return Vector2(a).distance_squared_to(Vector2(candidate))<Vector2(b).distance_squared_to(Vector2(candidate)) or Vector2(a).distance_squared_to(Vector2(candidate))==Vector2(b).distance_squared_to(Vector2(candidate)) and SCData.cell_less(a,b))
+		for c in [candidate]+nearby:
+			if c not in result and g.zone_id(c)==zone and query.costs.has(c):result.append(c);break
 	for c in pool:
-		if result.size() >= 4:
-			break
-		if c not in result and Vector2(c).distance_to(Vector2(base)) <= 3.0:
-			result.append(c)
-	return result.slice(0, 4)
+		if result.size()>=4:break
+		if c not in result and Vector2(c).distance_to(Vector2(base))<=3.0 and query.costs.has(c):result.append(c)
+	return result.slice(0,4)
 
 
 static func preview(
@@ -90,9 +79,11 @@ static func preview(
 		stack_seeds.append(outside + normal * v.x + tangent * v.y)
 	for v in [Vector2i(1, 1), Vector2i(1, -1), Vector2i(2, 1), Vector2i(2, -1)]:
 		entry_seeds.append(inside + normal * v.x + tangent * v.y)
-	var stacks = fill_slots(g, stack_seeds, outside, g.zone_id(outside), 0.0)
-	var entries = fill_slots(g, entry_seeds, inside, room, 2.0)
-	if stacks.size() < units.size() or entries.size() < units.size():
+	var stacks = fill_slots(p, units[0], stack_seeds, outside, g.zone_id(outside), 0.0)
+	var snapshot: Dictionary=g.capture_navigation(w.perception if w.is_controlled(units[0]) else null)
+	var observe_then_plan: bool=room_action and g.snapshot_flags(snapshot,inside)&1==0
+	var entries: Array=[] if observe_then_plan or not room_action else fill_slots(p,units[0],entry_seeds,inside,room,2.0)
+	if stacks.size()<units.size() or room_action and not observe_then_plan and entries.size()<units.size():
 		return [null, "入口没有足够槽位"]
 	if method in ["open", "kick"]:
 		var reachable = []
@@ -143,6 +134,8 @@ static func preview(
 		opening = "kick" if method in ["kick", "breach"] or known == "locked" else "open"
 	var d = {
 		"actors": [],
+		"observe_then_plan":observe_then_plan,
+		"entry_seeds":entry_seeds,
 		"door": door,
 		"room": room,
 		"method": method,
@@ -165,7 +158,7 @@ static func preview(
 	for i in range(units.size()):
 		d.actors.append(units[i].id)
 		d.stacks[units[i].id] = stacks[i]
-		d.entries[units[i].id] = entries[i]
+		if i<entries.size():d.entries[units[i].id]=entries[i]
 	if d.after_entry not in ["hold", "search"]:
 		return [null, "无效的突入后行动"]
 	for mapping in [d.stack_overrides, d.entry_overrides, d.stack_angles, d.entry_angles]:
@@ -184,7 +177,8 @@ static func preview(
 			occupied[c] = true
 		for id in overrides:
 			var c = overrides[id]
-			if not g.walkable(c) or g.zone_id(c) != zone:
+			if w.is_controlled(units[0]) and g.snapshot_flags(snapshot,c)&1==0:return [null,"区域未探索"]
+			if not g.snapshot_walkable(snapshot,c) or g.zone_id(c) != zone:
 				return [null, "站位必须在对应房间的可行走格"]
 			if phase == "entry":
 				if c == inside:
@@ -246,6 +240,7 @@ static func submit(p, d: Dictionary, append: bool) -> String:
 	var fresh = result[0]
 	if fresh.item != null and fresh.landing == null:
 		return "请设置道具落点"
+	if not p.request_paths_valid():return "规划中"
 	var id = p.next_id
 	p.next_id += 1
 	if not append:
@@ -299,7 +294,7 @@ static func retry(p, id: int) -> String:
 			return error
 	if p.world.perception.doors.get(d.door) == "locked" and d.opening != "kick":
 		return "门已锁，请重新选择破门方式"
-	var goals = d.entries if t.resume_phase in ["enter", "search"] and d.sync == null else d.stacks
+	var goals = d.entries if t.resume_phase in ["enter", "search"] and d.sync == null and not d.get("observe_then_plan",false) else d.stacks
 	for i in d.actors:
 		if p.path(p.actor(i), goals[i]).is_empty():
 			return "执行位置不可达，请修改方案"
@@ -327,8 +322,9 @@ static func observations(p, room: String) -> Array:
 		Vector2i(r[0] + 1, r[3] - 1),
 		Vector2i(int((r[0] + r[2] + 1) / 2), int((r[1] + r[3] + 1) / 2))
 	]
+	var snapshot: Dictionary=p.world.grid.capture_navigation(p.world.perception)
 	var cells = p.world.grid.zones[room].cells.keys().filter(
-		func(c): return p.world.grid.walkable(c)
+		func(c): return p.world.grid.snapshot_walkable(snapshot,c)
 	)
 	var result = []
 	for seed in seeds:
@@ -344,41 +340,36 @@ static func observations(p, room: String) -> Array:
 
 
 static func assign_search(p, t: Dictionary):
-	var ids = t.draft.actors.filter(func(i): return not t.guards.has(i))
-	var remaining = []
-	if ids.is_empty():
-		return
-	if not t.searches.is_empty():
-		for points in t.searches.values():
-			for c in points:
-				if c not in remaining:
-					remaining.append(c)
-	else:
-		remaining = observations(p, t.draft.room)
-	var costs = {}
-	var ends = {}
-	t.searches = {}
-	t.observations = {}
-	for id in ids:
-		costs[id] = 0.0
-		ends[id] = p.position_cell(p.actor(id))
-		t.searches[id] = []
-		t.observations[id] = 0.0
-	for point in remaining:
-		var selected = ids[0]
+	var ids: Array=t.draft.actors.filter(func(id):return not t.guards.has(id))
+	if ids.is_empty():return
+	if not t.has("assignment_work"):
+		var remaining: Array=[]
+		if not t.searches.is_empty():
+			for points in t.searches.values():
+				for c in points:
+					if c not in remaining:remaining.append(c)
+		else:remaining=observations(p,t.draft.room)
+		var work: Dictionary={"remaining":remaining,"index":0,"costs":{},"ends":{},"searches":{}}
+		for id in ids:work.costs[id]=0.0;work.ends[id]=p.position_cell(p.actor(id));work.searches[id]=[]
+		t.assignment_work=work;t.search_planning=true
+	var work: Dictionary=t.assignment_work
+	while work.index<work.remaining.size():
+		var point: Vector2i=work.remaining[work.index];var selected=ids[0]
 		for id in ids:
-			if costs[id] < costs[selected]:
-				selected = id
-		costs[selected] += p.world.grid.path_cost(
-			p.path(p.actor(selected), point, {"start": ends[selected], "zone": t.draft.room})
-		)
-		t.searches[selected].append(point)
-		ends[selected] = point
+			if work.costs[id]<work.costs[selected]:selected=id
+		var query: Dictionary=p.cost_query(p.actor(selected),[point],{"start":work.ends[selected],"zone":t.draft.room})
+		if query.state!="complete":return
+		if query.costs.has(point):work.costs[selected]+=query.costs[point];work.searches[selected].append(point);work.ends[selected]=point
+		work.index+=1
+	t.searches=work.searches;t.observations={}
+	for id in ids:t.observations[id]=0.0
+	t.erase("assignment_work");t.search_planning=false
 
 
 static func finish(p, t: Dictionary):
 	for id in t.draft.actors:
 		var a = p.actor(id)
+		p.note_node_completed(a,t.token)
 		a.reservations.erase(t.token)
 		a.queue = a.queue.filter(func(n): return n.task_id != t.id)
 		a.blocked_reason = ""
@@ -389,38 +380,26 @@ static func finish(p, t: Dictionary):
 
 
 static func resolve_slot(p, t: Dictionary, a, cell, assigned: Array, zone):
-	var occupied = {}
+	var occupied: Dictionary={}
 	for other in p.world.actors:
-		if (
-			other.alive
-			and other.id != a.id
-			and other.occupied_cell != null
-			and other.route.is_empty()
-		):
-			occupied[other.occupied_cell] = true
-	if not occupied.has(cell):
-		return cell
-	var g = p.world.grid
-	var room = g.zone_id(cell)
-	var choices = []
-	for c in g.zones[room].cells:
-		if (
-			occupied.has(c)
-			or c != cell and c in assigned
-			or not g.walkable(c)
-			or Vector2(c).distance_to(Vector2(cell)) > 2
-		):
-			continue
-		var opts = {}
-		if zone != null:
-			opts.zone = zone
-		if t.phase in ["stack", "wait"]:
-			opts.exclude = t.draft.room
-		var route = p.path(a, c, opts)
-		if not route.is_empty():
-			choices.append(
-				[Vector2(c).distance_squared_to(Vector2(cell)), g.path_cost(route), c.y, c.x, c]
-			)
+		if other.id==a.id or not other.alive or other.occupied_cell==null or not other.route.is_empty():continue
+		if p.world.is_controlled(a) and not p.world.is_controlled(other) and not p.world.perception.player_visible.has(other.id):continue
+		occupied[other.occupied_cell]=true
+	if not occupied.has(cell):return cell
+	var g=p.world.grid;var room=g.zone_id(cell);var candidates: Array=[]
+	var snapshot: Dictionary=g.capture_navigation(p.world.perception if p.world.is_controlled(a) else null)
+	for y in range(cell.y-2,cell.y+3):
+		for x in range(cell.x-2,cell.x+3):
+			var c:=Vector2i(x,y)
+			if g.zone_id(c)==room and not occupied.has(c) and not (c!=cell and c in assigned) and Vector2(c-cell).length_squared()<=4 and g.snapshot_walkable(snapshot,c):candidates.append(c)
+	var options: Dictionary={}
+	if zone!=null:options.zone=zone
+	if t.phase in ["stack","wait"]:options.exclude=t.draft.room
+	var query: Dictionary=p.cost_query(a,candidates,options)
+	if query.state!="complete":return cell
+	var choices: Array=[]
+	for c in candidates:
+		if query.costs.has(c):choices.append([Vector2(c).distance_squared_to(Vector2(cell)),query.costs[c],c.y,c.x,c])
 	choices.sort_custom(SCGrid.heap_less)
 	return cell if choices.is_empty() else choices[0][4]
 
@@ -534,6 +513,11 @@ static func tick(p, t: Dictionary, dt: float):
 		if w.time < t.blast_at:
 			return
 		t.phase = "enter"
+	if t.phase=="enter" and d.get("observe_then_plan",false):
+		var entries: Array=fill_slots(p,units[0],d.entry_seeds,d.inside,d.room,2.0)
+		if entries.size()<units.size():t.reason="观察后规划";return
+		for i in range(units.size()):d.entries[units[i].id]=entries[i]
+		d.observe_then_plan=false;t.reason=""
 	if t.phase == "enter":
 		for i in range(t.enter_index):
 			var a = units[i]
@@ -575,6 +559,7 @@ static func tick(p, t: Dictionary, dt: float):
 				assign_search(p, t)
 		return
 	if t.phase == "search":
+		if t.get("search_planning",false):assign_search(p,t);return
 		var done = true
 		for a in units:
 			var points = t.searches.get(a.id, [])

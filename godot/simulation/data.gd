@@ -358,6 +358,14 @@ static func validate_scenes(doc: Dictionary) -> PackedStringArray:
 		coordinates(spec.bounds_m,4,"scenes."+name+".bounds_m",p)
 		if spec.bounds_m.size()!=4: continue
 		if spec.bounds_m[2]<=0 or spec.bounds_m[3]<=0: p.append("scenes."+name+": invalid bounds")
+		var scene_bounds := Rect2(spec.bounds_m[0],spec.bounds_m[1],spec.bounds_m[2],spec.bounds_m[3])
+		if spec.has("faction_relations"):
+			if not spec.faction_relations is Dictionary: p.append("scenes."+name+": invalid faction relations")
+			else:
+				for faction in spec.faction_relations:
+					if not spec.faction_relations[faction] is Dictionary: p.append("scenes."+name+": invalid faction entry"); continue
+					for relation in spec.faction_relations[faction].values():
+						if relation not in ["friendly","neutral","hostile"]: p.append("scenes."+name+": unknown faction relation")
 		fields(spec.terrain,{"passable":"bool","movement_multiplier":"positive","ground_height_m":"number","cover_height_m":"nonnegative","blocks_sight":"bool","blocks_projectile":"bool"},"scenes."+name+".terrain",p)
 		var ids := {}
 		for entity in spec.entities:
@@ -409,6 +417,14 @@ static func validate_scenes(doc: Dictionary) -> PackedStringArray:
 		for character in spec.actors:
 			if not fields(character,{"id":"number","label":"string","team":"string","position_m":"array","facing_radians":"number","unit":"string"},"scene.actor",p): continue
 			coordinates(character.position_m,2,"scene.actor.position_m",p)
+			if character.position_m.size()==2 and not scene_bounds.has_point(Vector2(character.position_m[0],character.position_m[1])): p.append("scene.actor: position outside map")
+			for flag in ["controlled","ai_enabled","armed"]:
+				if character.has(flag): fields(character,{flag:"bool"},"scene.actor",p)
+			if character.has("patrol"):
+				if not character.patrol is Array: p.append("scene.actor: invalid patrol")
+				else:
+					for point in character.patrol:
+						if coordinates(point,2,"scene.actor.patrol",p) and not scene_bounds.has_point(Vector2(point[0],point[1])): p.append("scene.actor: patrol outside map")
 			if actors.has(character.id): p.append("scene.actor: duplicate actor")
 			actors[character.id]=true
 			if not catalog.units.has(character.get("unit","")): p.append("scene.actor: unknown unit")

@@ -42,7 +42,7 @@ void fragment() {
  float primer=smoothstep(.18,.34,dot(paint,vec3(.2126,.7152,.0722)))*(1.0-painted_rust);
  float grey=1.0-smoothstep(.012,.05,max(paint.r,max(paint.g,paint.b))-min(paint.r,min(paint.g,paint.b)));
  float bare=grey*(1.0-primer)*(1.0-painted_rust);
- // Original 4K photographic grain keeps close-ups detailed beneath paint.
+ // Imported 2K photographic grain keeps close-ups detailed beneath paint.
  vec3 micro=texture(steel_normal,UV/.16).rgb*2.0-1.0;
  vec3 color=paint*(.86+.10*large);
  color*=1.0-.12*noise2(position*10.0);

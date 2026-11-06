@@ -15,6 +15,13 @@ static func occupied(actor, actors: Array) -> Dictionary:
 	return result
 
 
+static func cell_occupied(actor, grid, cell: Vector2i) -> bool:
+	for entity in grid.entities_near(SCData.center(cell),1.5):
+		var other=entity.actor
+		if other!=null and other.id!=actor.id and other.alive and other.mode in ["standing","acting"] and other.occupied_cell==cell:return true
+	return false
+
+
 static func reserved(actor, actors: Array) -> Dictionary:
 	var result = {}
 	for other in actors:
@@ -24,6 +31,7 @@ static func reserved(actor, actors: Array) -> Dictionary:
 
 
 static func speed(actor, grid, actors: Array) -> float:
+	if actor.mode=="standing" and actor.world!=null and actor.world.planner.motion_held(actor):grid.release_passage(actor);return 0.0
 	if not actor.capabilities.permissions.can_move or actor.stunned > 0 or actor.current_action != null:
 		return 0.0
 	if actor.mode == "moving":
@@ -37,8 +45,9 @@ static func speed(actor, grid, actors: Array) -> float:
 				break
 		if target == null or not grid.can_move(actor.occupied_cell, target):
 			return 0.0
-		if target == actor.reserved_cell and occupied(actor, actors).has(target):
+		if target == actor.reserved_cell and cell_occupied(actor,grid,target):
 			return 0.0
+		if not grid.request_passage(actor,actor.occupied_cell,target):return 0.0
 	else:
 		return 0.0
 	return maxf(
@@ -46,7 +55,7 @@ static func speed(actor, grid, actors: Array) -> float:
 		(
 			actor.speed
 			* SCData.angle_speed(actor.capabilities.values.move_angle_curve, angle_difference(actor.facing, movement_direction(actor).angle()))
-			* grid.terrain_speed.get(SCData.cell_of(actor.position), 1.0)
+			* grid.terrain_multiplier(SCData.cell_of(actor.position))
 		)
 	)
 
@@ -66,29 +75,20 @@ static func allowances(actors: Array, grid, dt: float) -> Dictionary:
 	var distances = {}
 	for a in actors:
 		speeds[a.id] = speed(a, grid, actors)
-	for i in range(actors.size()):
-		var a = actors[i]
-		if not a.alive:
-			continue
-		for j in range(i + 1, actors.size()):
-			var b = actors[j]
-			if not b.alive or a.position.distance_to(b.position) >= a.radius + b.radius + 0.18:
-				continue
-			var ca = SCData.cell_of(a.position)
-			var cb = SCData.cell_of(b.position)
-			if ca != cb and not grid.can_move(ca, cb):
-				continue
-			if speeds[a.id] <= 0 and speeds[b.id] <= 0:
-				continue
-			var slow = a
-			if speeds[a.id] <= 0:
-				slow = b
-			elif (
-				speeds[b.id] > 0
-				and (speeds[b.id] < speeds[a.id] or speeds[a.id] == speeds[b.id] and b.id > a.id)
-			):
-				slow = b
-			slowed[slow.id] = true
+	var maximum_radius:=0.0
+	for a in actors:maximum_radius=maxf(maximum_radius,a.radius)
+	for a in actors:
+		if not a.alive:continue
+		for entity in grid.entities_near(a.position,a.radius+maximum_radius+.18):
+			var b=entity.actor
+			if b==null or b.id<=a.id or not b.alive or a.position.distance_to(b.position)>=a.radius+b.radius+.18:continue
+			var ca:=SCData.cell_of(a.position);var cb:=SCData.cell_of(b.position)
+			if ca!=cb and not grid.can_move(ca,cb):continue
+			if speeds[a.id]<=0 and speeds[b.id]<=0:continue
+			var slow=a
+			if speeds[a.id]<=0:slow=b
+			elif speeds[b.id]>0 and (speeds[b.id]<speeds[a.id] or speeds[b.id]==speeds[a.id] and b.id>a.id):slow=b
+			slowed[slow.id]=true
 	for a in actors:
 		if not a.alive:
 			a.crowd_slow_remaining = 0.0
@@ -138,6 +138,7 @@ static func begin_step(a):
 static func update(a, grid, actors: Array, dt: float, distance: float):
 	if not a.alive or a.stunned > 0:
 		return
+	if a.mode=="standing" and a.world!=null and a.world.planner.motion_held(a):grid.release_passage(a);return
 	if a.mode == "standing" and not a.route.is_empty():
 		var next = null
 		for c in a.route:
@@ -149,11 +150,13 @@ static func update(a, grid, actors: Array, dt: float, distance: float):
 			return
 		if not grid.can_move(a.occupied_cell, next):
 			return
-		if next == a.reserved_cell and occupied(a, actors).has(next):
+		if next == a.reserved_cell and cell_occupied(a,grid,next):
 			return
+		if not grid.request_passage(a,a.occupied_cell,next):return
 		begin_step(a)
 	if a.mode != "moving":
 		if a.route.is_empty():
+			grid.release_passage(a)
 			a.target_cell = null
 			a.reserved_cell = null
 		return
@@ -209,4 +212,6 @@ static func update(a, grid, actors: Array, dt: float, distance: float):
 	a.move_to = null
 	a.move_progress = 0.0
 	if a.route.is_empty():
+		grid.release_passage(a)
 		a.clear_movement()
+	elif a.world!=null and a.world.planner.motion_held(a):grid.release_passage(a)

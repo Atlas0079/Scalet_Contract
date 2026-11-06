@@ -199,6 +199,9 @@ static func record_shot(actor, rng: RandomNumberGenerator, consume_ammo := true)
 	if consume_ammo: weapon.ammo -= 1
 	weapon.cooldown = weapon.definition.fire_interval
 	weapon.shots_fired += 1
+	if actor.world!=null:
+		actor.world.stats.rounds+=1
+		if actor.world.is_controlled(actor): actor.world.stats.controlled_rounds+=1
 	var spec: Dictionary = weapon.definition.recoil
 	var impulse:=pair(spec.impulse_degrees_per_second)*float(actor.capabilities.values.recoil_kick_scale)
 	if not weapon.recoil_active:
@@ -364,11 +367,7 @@ static func advance_path(shot: Dictionary, dt: float, grid: SCGrid, targets: Arr
 				var resistance: float = part.protection
 				var incoming: float = shot.penetration
 				var damage: float = shot.damage_value
-				var before: bool = entity.ruined
 				entity.damage(damage)
-				if before!=entity.ruined:
-					grid.revision+=1
-					grid.path_cache.clear()
 				var next_penetration := remaining_penetration(incoming,resistance)
 				if next_penetration>=0:
 					penetrated=true
@@ -394,7 +393,11 @@ static func advance_shot(shot: Dictionary, dt: float, grid, actors: Array, rng: 
 	var start: Vector2 = shot.end
 	var old_distance: float = shot.travelled
 	var targets: Array = []
-	for a in actors:
+	var candidates: Array = actors
+	if not actors.is_empty() and actors[0].world!=null and actors[0].world.grid==grid:
+		var distance: float=minf(shot.speed*dt,maxf(0,shot.range-shot.travelled))
+		candidates=actors[0].world.projectile_candidates(shot.end,shot.end+shot.direction*shot.horizontal_factor*distance)
+	for a in candidates:
 		if a.id==shot.shooter_id or not a.alive: continue
 		targets.append({"actor":a,"previous":a.previous_position,"position":a.position,"radius":a.radius,"height":a.height,"label":a.actor_name})
 	var result := advance_path(shot,dt,grid,targets)
@@ -408,7 +411,7 @@ static func advance_shot(shot: Dictionary, dt: float, grid, actors: Array, rng: 
 		shot.damage=hit.damage
 	shot.near_misses=[]
 	var fraction: float = clampf((shot.travelled-old_distance)/maxf(shot.speed*dt,.000000001),0,1)
-	for a in actors:
+	for a in candidates:
 		if not a.alive or a.id==shot.shooter_id or a.id==shot.hit_actor_id or a.id in shot.suppressed: continue
 		var actor_end: Vector2 = a.previous_position.lerp(a.position,fraction)
 		var h0: float = shot.height-shot.direction_3d.y*(shot.travelled-old_distance)

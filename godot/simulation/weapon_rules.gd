@@ -41,7 +41,7 @@ static func advance(actor: SCActor, dt: float):
 
 static func can_attack(actor: SCActor, unlimited_ammo := false) -> bool:
 	var w: Dictionary = actor.weapon
-	if not actor.alive or not actor.capabilities.permissions.can_operate or not actor.equipment_action.is_empty() or not w.action.is_empty() or w.cooldown>.000001: return false
+	if not actor.armed or not actor.alive or not actor.capabilities.permissions.can_operate or not actor.equipment_action.is_empty() or not w.action.is_empty() or w.cooldown>.000001: return false
 	if w.definition.attack_category!="melee" and not actor.capabilities.permissions.can_aim: return false
 	match w.definition.attack_category:
 		"kinetic": return not SCEquipment.kinetic_locked(actor) and (unlimited_ammo or w.ammo>0)

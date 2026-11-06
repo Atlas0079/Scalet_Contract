@@ -8,7 +8,18 @@ uniform float shadow_floor : hint_range(0.0, 1.0) = 0.65;
 uniform vec3 light_direction = vec3(-0.4, 0.85, 0.3);
 uniform float flash : hint_range(0.0, 1.0) = 0.0;
 
+uniform sampler2D knowledge_texture : filter_nearest, repeat_disable;
+uniform vec4 knowledge_bounds = vec4(0.0,0.0,1.0,1.0);
+uniform bool knowledge_enabled = false;
+varying vec3 knowledge_position;
+void vertex(){knowledge_position=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;}
+vec2 knowledge_at(){
+ vec2 uv=(knowledge_position.xz-knowledge_bounds.xy)/knowledge_bounds.zw;
+ if(any(lessThan(uv,vec2(0.0))) || any(greaterThanEqual(uv,vec2(1.0))))return vec2(0.0);
+ return texture(knowledge_texture,uv).rg;
+}
 void fragment() {
+    if(knowledge_enabled && knowledge_at().r<0.5)discard;
     vec3 normal_world = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
     float light = clamp(dot(normal_world, normalize(light_direction)), 0.0, 1.0);
     float band = floor(light * float(shade_bands)) / float(shade_bands - 1);

@@ -2,6 +2,26 @@ class_name SCWorld
 extends RefCounted
 
 var grid: SCGrid
+var controlled_ids: Array = []
+var squads: Dictionary = {}
+var _actor_buckets: Dictionary = {}
+var _detail_needed: Dictionary = {}
+var _contact_dirty := true
+var _largest_view_distance := 0.0
+var _largest_actor_step := 0.0
+var _largest_actor_radius := 0.0
+var _largest_operation_range := 0.0
+var _actor_order: Dictionary = {}
+var _phase := 0
+const CPU_PHASE_NAMES := ["advance_state","actions","perception_pre","ai_planner_population","movement_indices","perception_post","shots_combat","finish"]
+var runtime_phases := OS.get_cmdline_user_args().has("--runtime-phases")
+var cpu_phase_usec: Array = [0,0,0,0,0,0,0,0]
+var _cpu_phase_started := 0
+var frame_steps := 0
+var active_detail_count := 0
+var active_combat_count := 0
+var unpaused_wall_time := 0.0
+var simulated_duration := 0.0
 var actors: Array = []
 var actor_index: Dictionary = {}
 var skill_registry: Dictionary = SCSkills.registry()
@@ -28,7 +48,7 @@ var events: Array = []
 var audio_events: Array = []
 var completed: Dictionary = {}
 var deaths_processed: Dictionary = {}
-var stats: Dictionary = {"rounds": 0, "friendly_hits": 0, "friendly_stuns": 0, "items": {}}
+var stats: Dictionary = {"rounds": 0, "controlled_rounds":0, "hits":0, "deaths":0, "deaths_by_team":{}, "friendly_hits": 0, "friendly_stuns": 0, "items": {}}
 
 
 var scene_definition: Dictionary
@@ -36,7 +56,7 @@ var entities: Dictionary = {}
 var manual_control := false
 var weapon_clock_external := false
 
-func _init(scene_name: String = "maintenance", controlled := false):
+func _init(scene_name: String = "field", controlled := false):
 	manual_control = controlled
 	assert(SCData.scenes.has(scene_name),"Unknown scene: "+scene_name)
 	scene_definition = SCData.scenes[scene_name].duplicate(true)
@@ -44,17 +64,30 @@ func _init(scene_name: String = "maintenance", controlled := false):
 	rng.seed = int(scene_definition.seed)
 	for spec in scene_definition.entities:
 		entities[spec.id] = SCEntity.new(spec)
+		for operation in spec.get("operations",[]): _largest_operation_range=maxf(_largest_operation_range,float(operation.get("range_m",0)))
 	for spec in scene_definition.actors:
 		var character := SCActor.new(int(spec.id),spec.label,spec.team,SCCombat.pair(spec.position_m),spec.facing_radians,spec.unit,skill_registry)
+		character.armed = bool(spec.get("armed",true))
+		character.ai_enabled = bool(spec.get("ai_enabled",false))
+		character.squad_id = str(spec.get("squad","actor:"+str(character.id)))
+		for point in spec.get("patrol",[]): character.patrol.append(SCData.cell(point))
+		if not character.patrol.is_empty(): character.home_cell=character.patrol[0]
+		if bool(spec.get("controlled",false)): controlled_ids.append(character.id)
 		add_actor(character)
+		if not squads.has(character.squad_id): squads[character.squad_id]=[]
+		squads[character.squad_id].append(character)
 	grid.load_scene(scene_definition,entities)
 	planner = SCPlanner.new(self)
 	perception = SCPerception.new()
 	loot = SCLoot.new(self)
 	paused = false
+	_refresh_population_index()
+	_refresh_detail_requirements()
+	_finish_detail_handoffs()
 
 func add_actor(character: SCActor):
 	character.world = self
+	_actor_order[character.id]=actors.size()
 	actors.append(character)
 	actor_index[character.id] = character
 	entities[character.identity] = SCEntity.new({"id":character.identity,"label":character.actor_name,"classification":"dropped","position_m":[character.position.x,character.position.y],"blocks_movement":true,"blocks_sight":false,"blocks_projectile":true},character)
@@ -63,9 +96,10 @@ func add_actor(character: SCActor):
 func move_actor(character: SCActor, offset: Vector2) -> Vector2:
 	if paused or not character.capabilities.permissions.can_move: return character.position
 	character.previous_position = character.position
-	var terrain: Dictionary = grid.cells[SCData.cell_of(character.position)]
+	var terrain: Dictionary = grid.terrain_at(SCData.cell_of(character.position))
 	character.position = grid.move_body(character.position,offset*terrain.movement_multiplier,character.radius,character.height,character)
 	character.occupied_cell = SCData.cell_of(character.position)
+	grid.update_actor(entities[character.identity])
 	return character.position
 
 func operate_door(id: String, character: SCActor, opened: bool) -> String:
@@ -74,7 +108,7 @@ func operate_door(id: String, character: SCActor, opened: bool) -> String:
 	if not character.capabilities.permissions.can_operate: return "无法操作"
 	if character.position.distance_to(entity.position)>1.65: return "距离过远"
 	if not opened:
-		for other in entities.values():
+		for other in grid.entities_in_rect(entity.footprint()):
 			if other==entity or not other.exists: continue
 			if other.actor==null and other.definition.classification!="dropped": continue
 			if entity.footprint().intersects(other.footprint()): return "先移开门内实体"
@@ -84,7 +118,7 @@ func inspect(character: SCActor) -> String:
 	if character.world!=self or not character.capabilities.permissions.can_operate: return "无法查看现场"
 	var found = null
 	var nearest := INF
-	for entity in entities.values():
+	for entity in grid.entities_near(character.position,_largest_operation_range):
 		if not entity.exists: continue
 		for operation in entity.definition.get("operations",[]):
 			var distance := character.position.distance_to(entity.position)
@@ -99,24 +133,22 @@ func advance_state(dt: float):
 	if paused: return
 	time += dt
 	tick_index += 1
-	var geometry_changed := false
-	for entity in entities.values():
+	for entry in grid.interactables.values():
+		var entity: SCEntity = entry.entity
 		var previous: float = entity.door.get("progress",0.0)
+		var was_blocking: bool = entity.blocks("movement")
 		if not entity.door.is_empty() and entity.door.state=="closing":
-			for other in entities.values():
+			for other in grid.entities_in_rect(entity.footprint()):
 				if other==entity or not other.exists or other.actor==null and other.definition.classification!="dropped": continue
 				if entity.footprint().intersects(other.footprint()): entity.door.state="stopped"; break
 		entity.advance(dt)
-		if entity.door.get("progress",0.0)!=previous: geometry_changed=true
+		if entity.door.get("progress",0.0)!=previous: grid.invalidate_entity(entity,was_blocking!=entity.blocks("movement"))
 	for door in grid.interactables.values():
 		door.state=door.entity.door.state
 		door.locked=door.entity.door.locked
 		if door.entity.door.placement=="edge":
 			var f = grid.edge_at(SCData.cell(door.entity.definition.edge_cell),door.entity.definition.edge_direction)
 			for kind in ["movement","sight","projectile"]: f["blocks_"+kind]=door.entity.blocks(kind)
-	if geometry_changed:
-		grid.revision += 1
-		grid.path_cache.clear()
 	for character in actors:
 		if not character.alive:
 			if not deaths_processed.has(character.id):
@@ -126,7 +158,9 @@ func advance_state(dt: float):
 			continue
 		SCEquipment.advance(character,dt)
 		if not weapon_clock_external: SCWeaponRules.advance(character,dt)
+		var before_revision: int = character.ability_revision
 		character.refresh_capabilities(time)
+		if before_revision!=character.ability_revision: _contact_dirty=true
 
 
 
@@ -155,10 +189,21 @@ func door_state(id: String) -> String:
 
 
 func update(dt: float):
+	if runtime_phases:
+		cpu_phase_usec=[0,0,0,0,0,0,0,0]
+		_cpu_phase_started=Time.get_ticks_usec()
+	planner.pump_requests()
+	if runtime_phases: _record_cpu_phase(3)
+	frame_steps = 0
 	if paused or winner != null:
 		return
+	unpaused_wall_time += maxf(0.0,dt)
 	if manual_control:
+		if runtime_phases: _cpu_phase_started=Time.get_ticks_usec()
 		advance_state(dt)
+		if runtime_phases: _record_cpu_phase(0)
+		simulated_duration += dt
+		frame_steps=1
 		return
 	var step = 1.0 / 60.0
 	accumulator += maxf(0.0, dt)
@@ -167,14 +212,25 @@ func update(dt: float):
 		accumulator -= step
 		tick(step)
 		count += 1
+		frame_steps += 1
+		simulated_duration += step
 	if accumulator >= step:
 		var remainder = fmod(accumulator, step)
 		discarded_time += accumulator - remainder
 		accumulator = remainder
 
 
+func _record_cpu_phase(index: int):
+	var now := Time.get_ticks_usec()
+	cpu_phase_usec[index]+=now-_cpu_phase_started
+	_cpu_phase_started=now
+
+
 func tick(dt: float):
+	if runtime_phases: _cpu_phase_started=Time.get_ticks_usec()
+	_phase=0
 	advance_state(dt)
+	if runtime_phases: _record_cpu_phase(0)
 	for shot in shots:
 		if shot.finished: shot.timer -= dt
 	shots = shots.filter(func(shot): return not shot.finished or shot.timer > 0)
@@ -188,7 +244,7 @@ func tick(dt: float):
 		a.previous_position = a.position
 		a.stunned = maxf(0.0, a.stunned - dt)
 		a.refresh_capabilities(time)
-		SCCombat.advance_recoil(a, dt)
+		if a.simulation_detail: SCCombat.advance_recoil(a, dt)
 		a.hit_flash = maxf(0.0, a.hit_flash - dt)
 		if a.current_action != null:
 			if (
@@ -198,20 +254,33 @@ func tick(dt: float):
 				interrupt(a, "微操接管自动换弹")
 			else:
 				update_action(a, dt)
+	if runtime_phases: _record_cpu_phase(1)
+	_refresh_population_index()
+	if _contact_dirty or tick_index%6==0: _refresh_detail_requirements()
+	if runtime_phases: _record_cpu_phase(4)
+	_phase=1
 	for i in range(projectiles.size() - 1, -1, -1):
 		if time >= projectiles[i].explode_at:
 			flash(projectiles[i])
 			projectiles.remove_at(i)
+	if runtime_phases: _record_cpu_phase(1)
+	_phase=2
 	perception.refresh(self, dt)
 	loot.refresh()
+	if runtime_phases: _record_cpu_phase(2)
 	if tick_index % 6 == 0:
 		for a in actors:
-			if a.ai_enabled:
+			if a.ai_enabled and a.simulation_detail:
 				SCPerception.update_enemy(self, a)
+	_advance_population_tasks()
 	planner.tick(dt)
+	if runtime_phases: _record_cpu_phase(3)
+	_phase=3
 	for a in actors:
-		if a.alive and a.team == "red" and has_threat(a) and not planner.micro_controls_motion(a):
+		if a.alive and is_controlled(a) and has_threat(a) and not planner.micro_controls_motion(a):
 			a.clear_movement()
+	for a in actors:
+		if not a.simulation_detail and not a.route.is_empty(): a.facing=SCMovement.movement_direction(a).angle()
 	var distances = SCMovement.allowances(actors, grid, dt)
 	for a in actors:
 		if not a.alive:
@@ -219,27 +288,38 @@ func tick(dt: float):
 		if a.current_action == null:
 			var before = a.position
 			SCMovement.update(a, grid, actors, dt, distances[a.id])
-			observe(a, dt, a.position - before)
+			grid.update_actor(entities[a.identity])
+			if a.simulation_detail: observe(a, dt, a.position - before)
+	_refresh_population_index()
+	if runtime_phases: _record_cpu_phase(4)
+	_phase=4
 	perception.refresh(self, 0.0)
+	if runtime_phases: _record_cpu_phase(5)
 	for shot in shots:
 		if not shot.finished:
+			_activate_projectile_contacts(shot,dt)
 			SCCombat.advance_shot(shot, dt, grid, actors, rng)
 			process_shot(shot)
+	_phase=5
 	for a in actors:
-		combat(a, dt)
+		if a.simulation_detail and a.detail_ready_tick<=tick_index: combat(a, dt)
+	if runtime_phases: _record_cpu_phase(6)
 	for a in actors:
 		if not a.alive and not deaths_processed.has(a.id):
 			deaths_processed[a.id] = true
 			planner.cancel_actor(a)
 			loot.corpse(a)
-			if a.team == "red":
+			if is_controlled(a):
 				message("%d %s 阵亡" % [a.id, a.actor_name], "hit")
 				pause_requested = true
+	_phase=6
+	_finish_detail_handoffs()
 	if pause_requested and winner == null:
 		set_paused(true)
 	pause_requested = false
 	if audio_events.size() > 64:
 		audio_events = audio_events.slice(audio_events.size() - 64)
+	if runtime_phases: _record_cpu_phase(7)
 
 
 func visible_targets(a) -> Array:
@@ -307,7 +387,7 @@ func observe(a, dt: float, motion: Vector2):
 	elif planned != null:
 		angle = planned
 	elif (
-		a.team == "red"
+		is_controlled(a)
 		and not macro
 		and not a.guard_explicit
 		and a.heard_timer > time
@@ -323,22 +403,23 @@ func observe(a, dt: float, motion: Vector2):
 
 
 func receive_attack(a, shot: Dictionary, attacker, hit: bool = false):
+	activate_actor(a)
 	a.recent_attackers[attacker.id] = time
 	var was_under_fire = a.under_fire_timer > time
 	var known = (
 		perception.player_visible.has(attacker.id)
-		if a.team == "red"
+		if is_controlled(a)
 		else a.visible.has(attacker.id) and a.recognized.has(attacker.id)
 	)
-	var friendly = (
-		attacker.team == a.team
-		and (a.team == "red" or perception.point_visible(self, a, attacker.position))
+	var friendly_known = (
+		friendly(attacker,a)
+		and (is_controlled(a) or perception.point_visible(self, a, attacker.position))
 	)
-	var unknown = not known and not friendly
+	var unknown = not known and not friendly_known
 	if (
 		unknown
 		or (
-			attacker.team != a.team
+			hostile(attacker,a)
 			and not (a.visible.has(attacker.id) and a.recognized.has(attacker.id))
 		)
 	):
@@ -360,7 +441,7 @@ func receive_attack(a, shot: Dictionary, attacker, hit: bool = false):
 			)
 		)
 		planner.suspend_actor(a, "%d 号受到未确认方向来弹" % a.id)
-		if a.team == "red" and not already:
+		if is_controlled(a) and not already:
 			message("%d 号受袭搜索" % a.id + (" · 关联计划已挂起" if not a.queue.is_empty() else ""), "hit")
 	elif hit:
 		interrupt(a, "受到攻击，动作中断")
@@ -375,6 +456,9 @@ func update_aim(a, dt: float, tracking: bool, heading = null):
 
 
 func combat(a, dt: float):
+	if not a.armed:
+		SCCombat.stop_firing(a)
+		return
 	if not a.alive or a.stunned > 0 or a.current_action != null:
 		SCCombat.stop_firing(a)
 		update_aim(a, dt, false)
@@ -395,7 +479,8 @@ func combat(a, dt: float):
 		return
 	var candidates = visible_targets(a)
 	if explicit != null:
-		candidates = candidates.filter(func(t): return t.id == explicit)
+		var chosen = actor(explicit)
+		candidates=[chosen] if chosen!=null and chosen.alive and a.recognized.has(explicit) and perception.point_visible(self,a,chosen.position) else []
 	if candidates.is_empty():
 		SCCombat.stop_firing(a)
 		a.reaction = 0.0
@@ -457,7 +542,7 @@ func combat(a, dt: float):
 		a.fire_reason = "射线被遮挡"
 		return
 	for other in actors:
-		if other.id == a.id or not other.alive or other.team != a.team:
+		if other.id == a.id or not other.alive or not friendly(other,a):
 			continue
 		var distance = SCCombat.segment_distance(other.position, a.position, target.position)
 		if distance[1] > 0 and distance[1] < 1 and distance[0] <= other.radius + 0.1:
@@ -473,8 +558,6 @@ func combat(a, dt: float):
 	SCSkills.award(a,"shooting",SCData.catalog.skills.experience.shooting_per_shot,"%s:shot:%d:%d" % [a.identity,tick_index,a.weapon.shots_fired])
 	shots.append(event)
 	emit_sound(a.position, a.team, a.weapon.definition.gunshot_radius, a.weapon.definition.category)
-	if a.team == "red":
-		stats.rounds += 1
 	
 
 func process_shot(event: Dictionary):
@@ -482,9 +565,9 @@ func process_shot(event: Dictionary):
 	if event.hit_actor_id != null:
 		var hit = actor(event.hit_actor_id)
 		receive_attack(hit, event, a, true)
-		if hit.team == a.team and a.team == "red":
+		if hit.team == a.team and is_controlled(a):
 			stats.friendly_hits += 1
-		if hit.team == "red" or perception.player_visible.has(hit.id):
+		if is_controlled(hit) or perception.player_visible.has(hit.id):
 			audio_events.append("hit")
 	for id in event.near_misses:
 		receive_attack(actor(id), event, a)
@@ -615,6 +698,7 @@ func update_action(a, dt: float):
 			interrupt(a, "物品不足")
 			return
 		part.hp = minf(part.definition.max_hp, part.hp + 22.0)
+		a.invalidate_body(part.definition.region)
 		a.refresh_capabilities(time)
 		item_used(a, action.item_id)
 	elif kind == "throw_grenade":
@@ -653,7 +737,7 @@ func update_action(a, dt: float):
 			interrupt(a, "门已锁")
 			return
 		grid.open_door(f.interactive_id, kind == "kick_door")
-		if a.team == "red":
+		if is_controlled(a):
 			perception.doors[f.interactive_id] = door_state(f.interactive_id)
 		emit_sound(
 			a.position,
@@ -669,7 +753,7 @@ func update_action(a, dt: float):
 
 
 func item_used(a, item: String):
-	if a.team == "red":
+	if is_controlled(a):
 		stats.items[item] = stats.items.get(item, 0) + 1
 
 
@@ -690,16 +774,22 @@ func flash(projectile: Dictionary):
 			distance < 0.0000001
 			or absf(angle_difference(a.facing, (pos - a.position).angle())) <= PI / 3
 		)
+		activate_actor(a)
 		a.stunned = maxf(a.stunned, 2.5 if front else 0.8)
+		a.refresh_capabilities(time)
+		actor_state_changed(a)
 		a.reaction = 0.0
 		a.aim_progress = 0.0
 		interrupt(a, "受到闪光震撼")
-		if a.team == "red" and projectile.team == "red":
+		if is_controlled(a) and projectile.team == a.team:
 			stats.friendly_stuns += 1
 
 
 
 func attack(shooter: SCActor, target: SCActor) -> String:
+	if not shooter.armed: return "没有装备武器"
+	activate_actor(shooter)
+	activate_actor(target)
 	if shooter.world!=self or target.world!=self: return "角色不在当前世界"
 	if shooter.position.distance_to(target.position)>shooter.weapon.definition.range: return "超出攻击距离"
 	if shooter.weapon.definition.attack_category=="thermal":
@@ -727,7 +817,7 @@ func resolve_attack(shooter: SCActor, target: SCActor) -> Dictionary:
 	var hit := grid.raycast(shooter.position,Vector2(finish.x,finish.z),origin.y,finish.y,"projectile")
 	var best: float = hit[0]
 	var victim: SCActor
-	for other in actors:
+	for other in projectile_candidates(shooter.position,Vector2(finish.x,finish.z)):
 		if other==shooter: continue
 		var fraction := SCCombat.cylinder_hit_fraction(shooter.position,Vector2(finish.x,finish.z),origin.y,finish.y,other.position,other.position,other.radius,0,entities[other.identity].height())
 		if fraction>=0 and fraction<best: best=fraction; victim=other
@@ -749,3 +839,160 @@ func controlled_movement(character: SCActor, input: Vector2, desired_facing: flo
 	move_actor(character,character.velocity*dt)
 	character.velocity=(character.position-before)/dt
 	return {"angle":angle,"speed_factor":factor,"before_facing":before_facing}
+
+
+func is_controlled(character) -> bool:
+	return character!=null and controlled_ids.has(character.id)
+
+
+func relation(a, b) -> String:
+	if a==null or b==null: return "neutral"
+	if a.team==b.team: return "friendly"
+	var relations: Dictionary=scene_definition.get("faction_relations",{})
+	return str(relations.get(a.team,{}).get(b.team,relations.get(b.team,{}).get(a.team,"neutral")))
+
+
+func hostile(a, b) -> bool:
+	return relation(a,b)=="hostile"
+
+
+func friendly(a, b) -> bool:
+	return relation(a,b)=="friendly"
+
+
+func actor_visible(character) -> bool:
+	return is_controlled(character) or perception.player_raw.has(character.id)
+
+
+func _bucket_key(point: Vector2) -> Vector2i:
+	return Vector2i(floori(point.x/8.0),floori(point.y/8.0))
+
+
+func _refresh_population_index():
+	_actor_buckets.clear()
+	_largest_view_distance=0.0
+	_largest_actor_step=0.0
+	_largest_actor_radius=0.0
+	for character in actors:
+		var key := _bucket_key(character.position)
+		if not _actor_buckets.has(key): _actor_buckets[key]=[]
+		_actor_buckets[key].append(character)
+		_largest_actor_step=maxf(_largest_actor_step,character.position.distance_to(character.previous_position))
+		_largest_actor_radius=maxf(_largest_actor_radius,character.radius)
+		if character.alive: _largest_view_distance=maxf(_largest_view_distance,character.view_distance)
+
+
+func actors_near(point: Vector2, radius: float) -> Array:
+	var result: Array = []
+	var lo := _bucket_key(point-Vector2.ONE*radius)
+	var hi := _bucket_key(point+Vector2.ONE*radius)
+	var squared := radius*radius
+	for y in range(lo.y,hi.y+1):
+		for x in range(lo.x,hi.x+1):
+			for character in _actor_buckets.get(Vector2i(x,y),[]):
+				if character.position.distance_squared_to(point)<=squared: result.append(character)
+	result.sort_custom(func(a,b): return _actor_order[a.id]<_actor_order[b.id])
+	return result
+
+
+func projectile_candidates(start: Vector2, finish: Vector2) -> Array:
+	return actors_near((start+finish)*.5,start.distance_to(finish)*.5+_largest_actor_step+_largest_actor_radius+.2)
+
+
+func activate_actor(character):
+	if character==null: return
+	for member in squads.get(character.squad_id,[character]):
+		if not member.simulation_detail and _phase>=4: member.detail_ready_tick=tick_index+1
+		member.simulation_detail=true
+		member.detail_until=maxf(member.detail_until,time+2.0)
+		member.refresh_capabilities(time)
+		_detail_needed[member.id]=true
+
+
+func actor_state_changed(character):
+	_contact_dirty=true
+	if grid!=null and entities.has(character.identity): grid.update_actor(entities[character.identity])
+
+
+func _refresh_detail_requirements():
+	_contact_dirty=false
+	_detail_needed.clear()
+	for character in actors:
+		if not character.alive: continue
+		var locked: bool = is_controlled(character) or character.current_action!=null or not character.equipment_action.is_empty() or not character.weapon.action.is_empty() or character.stunned>0 or character.under_fire_timer>time or character.heard_timer>time
+		if locked: activate_actor(character)
+		var radius: float = maxf(character.view_distance,_largest_view_distance)+maxf(1.0,character.speed)*.2+character.radius*2
+		for other in actors_near(character.position,radius):
+			if other==character or not other.alive or other.squad_id==character.squad_id: continue
+			var distance: float = character.position.distance_to(other.position)
+			var reach: float = character.radius+other.radius+.3+(character.speed+other.speed)*.2
+			if hostile(character,other): reach=maxf(reach,maxf(character.view_distance,other.view_distance)+(character.speed+other.speed)*.2)
+			elif is_controlled(character): reach=maxf(reach,character.view_distance+(character.speed+other.speed)*.2)
+			elif is_controlled(other): reach=maxf(reach,other.view_distance+(character.speed+other.speed)*.2)
+			if distance<=reach:
+				activate_actor(character)
+				activate_actor(other)
+		if not character.queue.is_empty() and character.queue[0].kind not in ["move","move_face","face","guard"]: activate_actor(character)
+
+
+func _finish_detail_handoffs():
+	active_detail_count=0
+	active_combat_count=0
+	for members in squads.values():
+		var can_exit := true
+		for member in members:
+			if is_controlled(member) or _detail_needed.has(member.id) or member.detail_until>time or member.current_action!=null or not member.equipment_action.is_empty() or not member.weapon.action.is_empty(): can_exit=false
+		if can_exit:
+			for member in members:
+				member.simulation_detail=false
+				SCCombat.stop_firing(member)
+		for member in members:
+			if member.simulation_detail and member.alive: active_detail_count+=1
+			if member.aim_target_id!=null and member.alive: active_combat_count+=1
+
+
+func _activate_projectile_contacts(shot: Dictionary, dt: float):
+	var start: Vector2=shot.end
+	var length: float=minf(shot.speed*dt,maxf(0,shot.range-shot.travelled))
+	var finish: Vector2=start+shot.direction*shot.horizontal_factor*length
+	for character in projectile_candidates(start,finish):
+		if character.alive and not character.simulation_detail: activate_actor(character)
+
+
+func _advance_population_tasks():
+	# Abstract actors keep real route progress and occupancy. Decisions and path
+	# requests are shared/issued only at arrival or the low-frequency task check.
+	for members in squads.values():
+		var leader = null
+		for member in members:
+			if member.alive and not member.patrol.is_empty(): leader=member;break
+		if leader==null: continue
+		for member in members:
+			if not member.alive or is_controlled(member) or member.simulation_detail and member.ai_enabled: continue
+			if member.current_action!=null or member.stunned>0 or not member.route.is_empty() or time<member.coarse_wait_until: continue
+			if member.patrol.is_empty(): continue
+			var target: Vector2i = member.patrol[member.patrol_index%member.patrol.size()]
+			if member.position.distance_to(SCData.center(target))<.05:
+				member.patrol_index=(member.patrol_index+1)%member.patrol.size()
+				member.coarse_wait_until=time+1.0
+				continue
+			var options := {"known":false,"zone":null}
+			var route: Array = []
+			if member!=leader and not leader.route.is_empty() and leader.route.size()<=64:
+				var offset: Vector2i = target-leader.patrol[leader.patrol_index%leader.patrol.size()]
+				var previous = planner.position_cell(member)
+				var legal := true
+				for point in leader.route:
+					var shifted: Vector2i=point+offset
+					if shifted==previous: continue
+					if not grid.can_move(previous,shifted): legal=false;break
+					route.append(shifted);previous=shifted
+				if not legal: route.clear()
+			if route.is_empty(): route=planner.path(member,target,options)
+			if not route.is_empty():
+				member.route=route
+				member.target_cell=target
+				member.reserved_cell=target
+				member.guard_angle=(SCData.center(target)-member.position).angle()
+				if not member.simulation_detail: member.facing=member.guard_angle
+			member.coarse_wait_until=time+1.0

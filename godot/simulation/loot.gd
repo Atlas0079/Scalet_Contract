@@ -11,6 +11,7 @@ var searchers: Dictionary = {}
 var results: Dictionary = {}
 var notifications: Array = []
 var counter: int = 0
+var _approach_pending := false
 
 
 func _init(w):
@@ -58,7 +59,8 @@ func add(
 	kind: String,
 	cell: Vector2i,
 	items: Array = [],
-	discovered: bool = false
+	discovered: bool = false,
+	source_entity: SCEntity = null
 ) -> Dictionary:
 	var obj = {
 		"id": id,
@@ -75,9 +77,12 @@ func add(
 	}
 	for i in items:
 		obj.items[i.id] = i
-	if not world.entities.has(id):
+	var created: bool=source_entity==null and not world.entities.has(id)
+	if created:
 		world.entities[id]=SCEntity.new({"id":id,"label":label,"classification":"fixed" if kind in ["container","case"] else "dropped","origin":"dropped","installation":"free","mobility":"none" if kind in ["container","case"] else "carry","pickup_mode":"inventory" if kind=="ground" else "none","mass_kg":0.0,"protection":0.0,"damageable":false,"position_m":[cell.x+.5,cell.y+.5],"footprint_m":[.4,.4],"bottom_m":0.0,"height_m":.3,"blocks_movement":kind in ["container","case"],"blocks_sight":false,"blocks_projectile":false})
-	obj["entity"]=world.entities[id]
+	obj["entity"]=source_entity if source_entity!=null else world.entities[id]
+	if created:
+		obj.entity.space=weakref(world.grid);world.grid.invalidate_entity(obj.entity,obj.entity.blocks("movement"))
 	obj.entity.contents=obj.items
 	objects[id] = obj
 	if discovered and obj.searched:
@@ -130,29 +135,33 @@ func reserved_weight(id: int, excluding: Array = []) -> float:
 	return result
 
 
-func interaction_cells(obj: Dictionary) -> Array:
-	var g = world.grid
-	var cells = []
-	if obj.kind != "container" and g.walkable(obj.cell):
-		cells.append(obj.cell)
-	for delta in SCGrid.DIRS.values():
-		var c = obj.cell + delta
-		var edge = g.edge_between(c, obj.cell)
-		if g.walkable(c) and (edge == null or not edge.blocks_movement):
-			cells.append(c)
+func interaction_cells(obj: Dictionary, observer = null) -> Array:
+	var g=world.grid;var cells: Array=[]
+	var player: bool=observer!=null and world.is_controlled(observer)
+	var snapshot: Dictionary=g.capture_navigation(world.perception) if player else {}
+	if obj.kind!="container" and (g.snapshot_walkable(snapshot,obj.cell) if player else g.walkable(obj.cell)):cells.append(obj.cell)
+	for delta: Vector2i in SCGrid.DIRS.values():
+		var c: Vector2i=obj.cell+delta
+		if player:
+			var direction: int=SCGrid.DIRS.values().find(-delta)
+			if g.snapshot_walkable(snapshot,c) and g.snapshot_flags(snapshot,c)&(4<<direction)!=0:cells.append(c)
+		else:
+			var edge=g.edge_between(c,obj.cell)
+			if g.walkable(c) and (edge==null or not edge.blocks_movement):cells.append(c)
 	return cells
 
 
 func approach(a, obj: Dictionary, start = null):
-	var occupied = SCMovement.occupied(a, world.actors)
-	var reserved = SCMovement.reserved(a, world.actors)
-	var choices = []
-	for c in interaction_cells(obj):
-		if occupied.has(c) or reserved.has(c):
-			continue
-		var route = world.planner.path(a, c, {"start": start} if start != null else {})
-		if not route.is_empty():
-			choices.append([world.grid.path_cost(route), c.y, c.x, 0, c])
+	_approach_pending=false
+	var known_actors: Array=world.actors.filter(func(other):return not world.is_controlled(a) or world.is_controlled(other) or world.perception.player_visible.has(other.id))
+	var occupied=SCMovement.occupied(a,known_actors);var reserved=SCMovement.reserved(a,known_actors)
+	var candidates: Array=interaction_cells(obj,a).filter(func(c):return not occupied.has(c) and not reserved.has(c))
+	var options: Dictionary={"start":start} if start!=null else {}
+	var query: Dictionary=world.planner.cost_query(a,candidates,options)
+	if query.state!="complete":_approach_pending=true;return null
+	var choices: Array=[]
+	for c in candidates:
+		if query.costs.has(c):choices.append([query.costs[c],c.y,c.x,0,c])
 	choices.sort_custom(SCGrid.heap_less)
 	return null if choices.is_empty() else choices[0][4]
 
@@ -167,8 +176,8 @@ func search_error(a, id, start = null) -> String:
 	var obj = objects.get(id)
 	if obj == null or not obj.discovered:
 		return "尚未发现此对象"
-	if approach(a, obj, start) == null:
-		return "没有可达的交互位置（不能隔墙操作）"
+	if approach(a,obj,start)==null:
+		return "规划中，请等待后重试" if _approach_pending else "没有可达的交互位置（不能隔墙操作）"
 	return ""
 
 
@@ -270,6 +279,7 @@ func cancel_pickup(token: String):
 
 
 func allocation_error(id: String, assignments: Dictionary) -> String:
+	world.planner._probe_pending=false
 	var obj = objects.get(id)
 	if obj == null or not obj.discovered or not obj.searched:
 		return "物品尚未搜索"
@@ -284,6 +294,8 @@ func allocation_error(id: String, assignments: Dictionary) -> String:
 		var i = obj.known.get(item_id)
 		if a == null or not a.alive or a.team != "red":
 			return "请选择存活的在场队员"
+		if world.planner._pending_predecessor(actor_id)>0 or world.planner.motion_held(a):
+			return a.actor_name+" 正在规划，请等待完成或停止后再分配"
 		if i == null:
 			return "物品记录不存在"
 		if not obj.items.has(item_id):
@@ -547,6 +559,7 @@ func tick_node(a, n: Dictionary, dt: float) -> bool:
 			return false
 		var target = a.occupied_cell if at_object(a, obj) else approach(a, obj)
 		if target == null:
+			if _approach_pending:n.reason="规划中";return false
 			a.blocked_reason = "没有可达且空闲的交互位置"
 			return false
 		n.cell = target
@@ -573,6 +586,7 @@ func tick_task(t: Dictionary, dt: float):
 	var w = world
 	var p = w.planner
 	var units = []
+	if t.get("search_planning",false):p.assign_search(t);return
 	if t.phase == "blocked":
 		return
 	for id in t.draft.actors:
@@ -585,6 +599,7 @@ func tick_task(t: Dictionary, dt: float):
 		units.append(a)
 	t.phase = "loot"
 	var claimed = {}
+	var planning:=false
 	for other in p.tasks.values():
 		for job in other.jobs.values():
 			claimed[job.object_id] = true
@@ -601,20 +616,22 @@ func tick_task(t: Dictionary, dt: float):
 			continue
 		if t.guards.has(a.id):
 			continue
-		var choices = []
+		var choices: Array=[];var object_goals: Dictionary={};var all_goals: Dictionary={}
+		var known_actors: Array=w.actors.filter(func(other):return not w.is_controlled(a) or w.is_controlled(other) or w.perception.player_visible.has(other.id))
+		var occupied: Dictionary=SCMovement.occupied(a,known_actors);var reserved: Dictionary=SCMovement.reserved(a,known_actors)
 		for obj in objects.values():
-			if (
-				not obj.discovered
-				or t.seen_loot.has(obj.id)
-				or claimed.has(obj.id)
-				or w.grid.zone_id(obj.cell) != t.draft.room
-			):
-				continue
-			if obj.searched and obj.known.is_empty():
-				continue
-			var c = approach(a, obj)
-			if c != null:
-				choices.append([w.grid.path_cost(p.path(a, c)), obj.id])
+			if not obj.discovered or t.seen_loot.has(obj.id) or claimed.has(obj.id) or w.grid.zone_id(obj.cell)!=t.draft.room or obj.searched and obj.known.is_empty():continue
+			var goals: Array=interaction_cells(obj,a).filter(func(c):return not occupied.has(c) and not reserved.has(c))
+			object_goals[obj.id]=goals
+			for c in goals:all_goals[c]=true
+		if not all_goals.is_empty():
+			var query: Dictionary=p.cost_query(a,all_goals.keys())
+			if query.state!="complete":planning=true;continue
+			for object_id in object_goals:
+				var best:=INF
+				for c in object_goals[object_id]:
+					if query.costs.has(c):best=minf(best,float(query.costs[c]))
+				if is_finite(best):choices.append([best,object_id])
 		choices.sort_custom(func(a, b): return a[0] < b[0] or a[0] == b[0] and a[1] < b[1])
 		if not choices.is_empty():
 			var id = choices[0][1]
@@ -635,6 +652,7 @@ func tick_task(t: Dictionary, dt: float):
 				t.observations[a.id] = 0.0
 	if t.jobs.values().any(func(job): return job.status == "allocation"):
 		t.phase = "allocation"
+	if planning:t.loot_idle=0.0;return
 	if (
 		t.jobs.is_empty()
 		and t.pickups.values().all(func(nodes): return nodes.is_empty())
@@ -658,11 +676,8 @@ func corpse(a):
 		if a.quantities[kind]>0: items.append(item(kind,a.quantities[kind]))
 	if a.weapon.definition.attack_category=="kinetic" and a.weapon.reserve_ammo>0:
 		items.append(item(a.weapon.definition.ammunition,int(a.weapon.reserve_ammo)))
-	var obj := add(id,a.actor_name+"的尸体","corpse",SCData.cell_of(a.position),items,a.team=="red")
-	world.entities.erase(id)
-	obj.entity=body
+	var obj := add(id,a.actor_name+"的尸体","corpse",SCData.cell_of(a.position),items,a.team=="red",body)
 	body.contents=obj.items
 	body.definition.merge({"origin":"unit_death","classification":"dropped","installation":"free","mobility":"push_drag","pickup_mode":"none","mass_kg":70.0,"height_m":.35,"protection":1.0,"damageable":true,"max_durability":70.0,"destroyed":{"exists":true,"height_m":.2,"protection":0.0,"blocks_movement":false,"blocks_sight":false,"blocks_projectile":true}},true)
 	body.durability=70.0
-	world.grid.revision+=1
-	world.grid.path_cache.clear()
+	world.grid.invalidate_entity(body,true)

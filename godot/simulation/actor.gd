@@ -4,6 +4,24 @@ extends RefCounted
 var id: int
 var actor_name: String
 var team: String
+var armed := true
+var simulation_detail := true
+var squad_id := ""
+var detail_until := 0.0
+var detail_ready_tick := 0
+var coarse_wait_until := 0.0
+var _body_revision := 0
+var _body_cache_revision := -1
+var _body_regions: Dictionary = {}
+var _body_functions: Dictionary = {}
+var _body_dead := false
+var _body_dirty_all := true
+var _body_dirty_regions: Dictionary = {}
+var _parts_index: Dictionary = {}
+var _body_sources_cache: Array = []
+var _body_sources_dirty := true
+var _ability_key: Array = []
+var _next_ability_boundary := INF
 var position: Vector2
 var previous_position: Vector2
 var velocity := Vector2.ZERO
@@ -158,11 +176,15 @@ func configure_character(kind: String):
 	aim_has_heading = false
 	states = definition.state_defaults.duplicate(true)
 	parts.clear()
+	_parts_index.clear()
+	_body_sources_dirty = true
+	invalidate_body()
 	for region in body_definition.regions:
 		for spec in region.parts:
 			var part_definition: Dictionary = spec.duplicate(true)
 			SCAbilityRules.freeze(part_definition)
 			parts[spec.id] = {"definition":part_definition,"hp":float(spec.max_hp),"instance_id":identity+":part:"+kind+":"+spec.id,"installed_at":ability_time}
+			_parts_index[parts[spec.id].instance_id] = parts[spec.id]
 	var attributes := {}
 	for key in SCAbilityRules.MIND_ATTRIBUTES[definition.species]: attributes[key] = definition.attributes[key]
 	consciousness = {}
@@ -196,12 +218,11 @@ func configure_character(kind: String):
 
 
 func parts_by_instance() -> Dictionary:
-	var result := {}
-	for part in parts.values(): result[part.instance_id] = part
-	return result
+	return _parts_index
 
 
 func body_sources() -> Array:
+	if not _body_sources_dirty: return _body_sources_cache
 	var result: Array = innate_sources.duplicate()
 	for attr in definition.recipes:
 		for slot in definition.recipes[attr]:
@@ -214,6 +235,8 @@ func body_sources() -> Array:
 	for part in parts.values():
 		for source_id in part.definition.bonus_sources:
 			result.append(SCAbilityRules.instantiate_source(source_id,part.instance_id+":bonus:"+source_id,"part",part.instance_id,part.installed_at))
+	_body_sources_cache = result
+	_body_sources_dirty = false
 	return result
 
 
@@ -265,6 +288,7 @@ func add_source(definition_id: String, instance_id := "") -> String:
 		if existing.source_id == source_id: return ""
 	var entry := SCAbilityRules.instantiate_source(definition_id,source_id,"actor" if owner.is_empty() else owner.kind,identity if owner.is_empty() else owner.id,ability_time)
 	destination.append(entry)
+	if not owner.is_empty(): owner["revision"] = int(owner.get("revision",0))+1
 	refresh_capabilities()
 	return source_id
 
@@ -272,7 +296,9 @@ func add_source(definition_id: String, instance_id := "") -> String:
 func remove_source(source_id: String):
 	sources = sources.filter(func(s): return s.source_id != source_id)
 	var owner := controller()
-	if not owner.is_empty(): owner.sources = owner.sources.filter(func(s): return s.source_id != source_id or s.origin_kind=="innate")
+	if not owner.is_empty():
+		owner.sources = owner.sources.filter(func(s): return s.source_id != source_id or s.origin_kind=="innate")
+		owner["revision"] = int(owner.get("revision",0))+1
 	refresh_capabilities()
 
 
@@ -290,15 +316,70 @@ func replace_part(slot: String, spec: Dictionary) -> bool:
 	var replacement := spec.duplicate(true)
 	SCAbilityRules.freeze(replacement)
 	skill_registry.sequence += 1
+	_parts_index.erase(parts[slot].instance_id)
 	parts[slot] = {"definition":replacement,"hp":float(spec.max_hp),"instance_id":identity+":part:"+str(skill_registry.sequence),"installed_at":ability_time}
+	_parts_index[parts[slot].instance_id] = parts[slot]
+	invalidate_body(spec.region)
 	refresh_capabilities()
 	return true
 
 
 func refresh_capabilities(at := -1.0):
 	if at >= 0: ability_time = at
+	else:
+		# Existing explicit mutation callers retain their refresh contract.
+		_ability_key.clear()
+		_body_sources_dirty = true
+	var person := controller()
+	var key: Array = [_body_revision,states.hash(),control_mode,control.hash(),stunned>0,mode=="dead",equipment.size(),
+		person.get("id",""),person.get("revision",0),person.get("active",false),person.get("states",{}).hash(),chip.get("revision",0)]
+	if not capabilities.is_empty() and key == _ability_key and ability_time < _next_ability_boundary: return
 	capabilities = SCAbilityRules.evaluate(self)
 	ability_revision = capabilities.revision
+	if world!=null: world.actor_state_changed(self)
+	_ability_key = key
+	_next_ability_boundary = INF
+	for entry in body_sources()+control_sources()+chip.get("sources",[]):
+		if entry.starts_at>ability_time: _next_ability_boundary=minf(_next_ability_boundary,entry.starts_at)
+		if entry.ends_at!=null and entry.ends_at>ability_time: _next_ability_boundary=minf(_next_ability_boundary,entry.ends_at)
+
+
+func invalidate_body(region := ""):
+	if region.is_empty(): _body_dirty_all=true
+	else: _body_dirty_regions[region]=true
+	_body_revision += 1
+	_ability_key.clear()
+
+
+func _ensure_body_snapshot():
+	if _body_cache_revision == _body_revision: return
+	if _body_dirty_all: _body_regions.clear()
+	_body_functions.clear()
+	for region in body_definition.regions:
+		if not _body_dirty_all and not _body_dirty_regions.has(region.id): continue
+		var current := 0.0
+		var maximum := 0.0
+		for spec in region.parts:
+			var part: Dictionary = parts.get(spec.id,{})
+			current += part.get("hp",0.0)
+			maximum += part.definition.max_hp if not part.is_empty() else spec.max_hp
+		_body_regions[region.id] = current/maximum if maximum>0 else 1.0
+	_body_dead = false
+	for id in body_definition.fatal_parts:
+		if not parts.has(id) or parts[id].hp<=0: _body_dead=true
+	for region in body_definition.fatal_regions:
+		if _body_regions.get(region,1.0)<=0: _body_dead=true
+	for kind in body_definition.capabilities:
+		var rule: Dictionary = body_definition.capabilities[kind]
+		var total := 0.0
+		var weights := 0.0
+		for region in rule.regions:
+			total += _body_regions.get(region,1.0)*rule.regions[region]
+			weights += rule.regions[region]
+		_body_functions[kind] = total/weights if weights>0 else 0.0
+	_body_cache_revision = _body_revision
+	_body_dirty_all=false
+	_body_dirty_regions.clear()
 
 
 func operation_rate(kind: String) -> float:
@@ -312,33 +393,18 @@ func operation_rate(kind: String) -> float:
 
 
 func region_fraction(region: String) -> float:
-	var current = 0.0
-	var maximum = 0.0
-	for entry in body_definition.regions:
-		if entry.id != region: continue
-		for spec in entry.parts:
-			var part: Dictionary = parts.get(spec.id,{})
-			current += part.get("hp",0.0)
-			maximum += part.definition.max_hp if not part.is_empty() else spec.max_hp
-	return current / maximum if maximum > 0 else 1.0
+	_ensure_body_snapshot()
+	return _body_regions.get(region,1.0)
 
 
 func body_dead() -> bool:
-	for id in body_definition.fatal_parts:
-		if not parts.has(id) or parts[id].hp <= 0: return true
-	for region in body_definition.fatal_regions:
-		if region_fraction(region) <= 0: return true
-	return false
+	_ensure_body_snapshot()
+	return _body_dead
 
 
 func body_function(kind: String) -> float:
-	var rule: Dictionary = body_definition.capabilities[kind]
-	var total := 0.0
-	var weights := 0.0
-	for region in rule.regions:
-		total += region_fraction(region) * rule.regions[region]
-		weights += rule.regions[region]
-	return total / weights if weights>0 else 0.0
+	_ensure_body_snapshot()
+	return _body_functions.get(kind,0.0)
 
 
 func treatment_part():
@@ -358,6 +424,7 @@ func treatment_part():
 
 
 func resolve_hit(region: String, damage: float, rng: RandomNumberGenerator, category := "kinetic", penetration := 0.0) -> Dictionary:
+	if world!=null: world.activate_actor(self)
 	var protected := SCEquipment.protect(self,region,{"category":category,"damage":damage,"penetration":penetration})
 	if protected.blocked: return {"part_id":"","damage":0.0,"blocked":true,"layer":protected.layer}
 	damage=protected.damage
@@ -374,10 +441,17 @@ func resolve_hit(region: String, damage: float, rng: RandomNumberGenerator, cate
 		if roll <= 0:
 			chosen = p
 			break
+	var was_alive := alive
 	var amount = damage * chosen.definition.damage_multiplier
 	chosen.hp = maxf(0.0, chosen.hp - amount)
+	invalidate_body(region)
 	mark_dead_if_needed()
 	refresh_capabilities()
+	if world!=null:
+		world.stats.hits+=1
+		if was_alive and not alive:
+			world.stats.deaths+=1
+			world.stats.deaths_by_team[team]=int(world.stats.deaths_by_team.get(team,0))+1
 	return {"part_id": chosen.definition.id, "damage": amount}
 
 
@@ -397,6 +471,7 @@ func mark_dead_if_needed():
 	if not anchors.is_empty():
 		death_anchor = anchors[0]
 	mode = "dead"
+	if world != null: world.actor_state_changed(self)
 	occupied_cell = null
 	move_from = null
 	move_to = null

@@ -2,7 +2,14 @@ extends Node3D
 
 const GAIT = preload("res://presentation/tactical/tactical_gait.gd")
 const FIRE_FX = preload("res://presentation/tactical/tactical_fire_fx.gd")
+static var styled_meshes: Dictionary = {}
 var stylized := false
+var embedded := false
+var show_reticle := true
+var armed := true
+var knowledge_texture: Texture2D
+var knowledge_bounds := Rect2()
+var knowledge_enabled := false
 var gait: SkeletonModifier3D
 var action_time := 0.0
 var current_action := "aim"
@@ -32,9 +39,10 @@ var last_port := Vector3.ZERO
 func _ready():
 	weapon_presentation = SCData.catalog.presentation.weapons[weapon_state.definition.presentation]
 	effects = FIRE_FX.new(weapon_state)
+	if shooter.world:effects.bind_world(shooter.world,false)
 	var socket: Array = weapon_presentation.casing_socket_source_units
 	casing_socket = Vector3(socket[0], socket[1], socket[2])
-	build_lighting()
+	if not embedded:build_lighting()
 	build_character()
 	player.play(weapon_presentation.clips.aim)
 	player.advance(0.0)
@@ -58,6 +66,7 @@ func _ready():
 	gait.modification_processed.connect(update_fire_sockets)
 	skeleton.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_MANUAL
 	skeleton.advance(0.0)
+	weapon.visible=armed
 
 func material(color: Color, roughness := 0.8) -> StandardMaterial3D:
 	var result := StandardMaterial3D.new()
@@ -124,6 +133,9 @@ func toon_material(color: Color, vertex_palette := false) -> ShaderMaterial:
 	mat.set_shader_parameter("use_vertex_palette", vertex_palette)
 	mat.set_shader_parameter("shade_bands", int(style.shade_bands))
 	mat.set_shader_parameter("shadow_floor", style.shadow_floor)
+	if knowledge_texture:mat.set_shader_parameter("knowledge_texture",knowledge_texture)
+	mat.set_shader_parameter("knowledge_bounds",Vector4(knowledge_bounds.position.x,knowledge_bounds.position.y,knowledge_bounds.size.x,knowledge_bounds.size.y))
+	mat.set_shader_parameter("knowledge_enabled",knowledge_enabled)
 	return mat
 
 func style_character():
@@ -132,6 +144,11 @@ func style_character():
 	var style: Dictionary = SCData.catalog.presentation.characters[character_definition.presentation].style
 	for node in rig.find_children("*", "MeshInstance3D", true, false):
 		if node == weapon: continue
+		var cache_key:=str([weapon_presentation.rig,character_definition.presentation,str(rig.get_path_to(node))])
+		if styled_meshes.has(cache_key):
+			node.mesh=styled_meshes[cache_key]
+			for surface in range(node.mesh.get_surface_count()):node.set_surface_override_material(surface,toon_material(Color.WHITE,true))
+			continue
 		var colored := ArrayMesh.new()
 		for surface in range(node.mesh.get_surface_count()):
 			var arrays: Array = node.mesh.surface_get_arrays(surface)
@@ -157,8 +174,9 @@ func style_character():
 			arrays[Mesh.ARRAY_COLOR] = colors
 			colored.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 			colored.surface_set_material(surface, toon_material(Color.WHITE, true))
+		styled_meshes[cache_key]=colored
 		node.mesh = colored
-		for surface in range(colored.get_surface_count()): node.set_surface_override_material(surface, null)
+		for surface in range(colored.get_surface_count()): node.set_surface_override_material(surface,toon_material(Color.WHITE,true))
 	style_weapon()
 
 func style_weapon():
@@ -168,6 +186,7 @@ func style_weapon():
 
 func trigger(clip: String, angular_error := Vector2.ZERO, elapsed_since_shot := 0.0):
 	if clip == "shoot":
+		if not armed:return
 		if current_action == "reload": return
 		# Repeated impulses, not repeated restarts of the 0.8 s single-shot clip.
 		shot_age = elapsed_since_shot
@@ -226,7 +245,7 @@ func update_fire_sockets():
 	var neutral_gun:Transform3D=gait.pose_context.gun
 	var neutral_muzzle:=neutral_gun*muzzle_socket
 	var reach:float=neutral_muzzle.distance_to(gait.pose_context.pivot)
-	effects.reticle = SCCombat.reticle_bounds(shooter, neutral_muzzle+offset, neutral_gun.basis.y.normalized(), Vector3(aim_target.x, aim_height, aim_target.y),reach)
+	if show_reticle:effects.reticle = SCCombat.reticle_bounds(shooter, neutral_muzzle+offset, neutral_gun.basis.y.normalized(), Vector3(aim_target.x, aim_height, aim_target.y),reach)
 	var light := maxf(0.0, 1.0 - shot_age / 0.07)
 	for entry in flash_materials:
 		if entry.material is ShaderMaterial:
@@ -238,7 +257,7 @@ func advance_unit(delta: float, yaw: float, local_velocity: Vector2, turning: fl
 	frame_delta = delta
 	for shot in pending_shots: shot.age += delta
 	rig.rotation.y = yaw
-	gait.aim_enabled = current_action != "reload"
+	gait.aim_enabled = armed and current_action != "reload"
 	var relative := aim_target - effect_origin
 	gait.aim_target = skeleton.global_transform.affine_inverse() * Vector3(relative.x, aim_height, relative.y)
 	action_time += delta
@@ -252,3 +271,13 @@ func advance_unit(delta: float, yaw: float, local_velocity: Vector2, turning: fl
 		current_action = "aim"
 		player.play(weapon_presentation.clips.aim, 0.15)
 	gait.advance_gait(delta, local_velocity, turning)
+
+func set_knowledge(texture: Texture2D, bounds: Rect2, enabled: bool):
+	knowledge_texture=texture;knowledge_bounds=bounds;knowledge_enabled=enabled
+	for mesh: MeshInstance3D in rig.find_children("*","MeshInstance3D",true,false):
+		for surface in range(mesh.mesh.get_surface_count()):
+			var mat: Material=mesh.get_active_material(surface)
+			if not mat is ShaderMaterial:continue
+			mat.set_shader_parameter("knowledge_texture",texture)
+			mat.set_shader_parameter("knowledge_bounds",Vector4(bounds.position.x,bounds.position.y,bounds.size.x,bounds.size.y))
+			mat.set_shader_parameter("knowledge_enabled",enabled)

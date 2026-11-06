@@ -17,7 +17,7 @@ static func holder(kind: String, identity: String, species: String, attributes: 
 	if species == "human": states["psi_load"] = 0.0
 	if kind == "chip": states = {}
 	return {"id":identity, "kind":kind, "species":species, "attributes":base,
-		"xp":xp.duplicate(true), "sources":[innate], "states":states, "active":true}
+		"xp":xp.duplicate(true), "sources":[innate], "states":states, "active":true, "revision":0}
 
 
 static func level(xp: float) -> float:
@@ -76,9 +76,11 @@ static func settle(reg: Dictionary, event_id: String, skill: String, amount: flo
 	reg.settled[event_id] = true
 	for recipient in recipients:
 		var person: Dictionary = recipient.holder
+		person["revision"] = int(person.get("revision",0))+1
 		person.xp[skill] = minf(SCData.catalog.skills.level.xp_max, person.xp[skill] + amount * recipient.weight)
 	if extra_sia:
 		var controller: Dictionary = recipients[0].holder
+		controller["revision"] = int(controller.get("revision",0))+1
 		controller.xp.sia_control = minf(SCData.catalog.skills.level.xp_max, controller.xp.sia_control + amount * SCData.catalog.skills.experience.sia_extra)
 	return true
 

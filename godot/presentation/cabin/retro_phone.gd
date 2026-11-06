@@ -25,7 +25,7 @@ func audio_player(volume: float) -> AudioStreamPlayer3D:
 
 func build_lcd(mesh: MeshInstance3D):
  display = SubViewport.new();display.size = Vector2i(120,84)
- display.disable_3d = true;display.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+ display.disable_3d = true;display.render_target_update_mode = SubViewport.UPDATE_ONCE
  add_child(display)
  var background := ColorRect.new();background.size = display.size;background.color = Color("87966a")
  display.add_child(background)
@@ -61,8 +61,11 @@ func refresh():
  if not text: return
  var lines: String = call.status+"\n"+(call.number if call.phase=="idle" else call.peer)
  if call.phase=="connected": lines += "\n%02d:%02d" % [int(call.elapsed)/60,int(call.elapsed)%60]
- text.text = lines
- softkeys.text = "呼叫     清除" if call.phase=="idle" else ("接听     拒接" if call.phase=="ringing" else "         挂断")
+ var key_text := "呼叫     清除" if call.phase=="idle" else ("接听     拒接" if call.phase=="ringing" else "         挂断")
+ if text.text != lines or softkeys.text != key_text:
+  text.text = lines
+  softkeys.text = key_text
+  display.render_target_update_mode = SubViewport.UPDATE_ONCE
  if audio_phase != call.phase:
   audio_phase = call.phase
   ring_audio.stop();tone_audio.stop();ring_timer = 0.0

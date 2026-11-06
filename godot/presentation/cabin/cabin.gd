@@ -1,9 +1,11 @@
 extends Node3D
-## Seated cabin with live maintenance and optional shooting-range feeds.
+## Seated cabin with a new command field and an independent shooting-range tool.
 const SIZE := Vector2i(2560,1440) # Outer application/cabin canvas.
-const GAME_SIZE := Vector2i(1920,1440) # 4:3 picture filling the CRT glass.
+const GAME_SIZE := Vector2i(2304,1440) # Native 16:10 central picture.
+const SIDE_GAME_SIZE := Vector2i(1920,1440)
+const WIDE_MONITOR = preload("res://assets/environment/television_16x10/television_wide.gltf")
 const RANGE = preload("res://presentation/cabin/embedded_range.gd")
-const MAINTENANCE = preload("res://presentation/cabin/embedded_maintenance.gd")
+const FIELD = preload("res://presentation/field/field.tscn")
 const RIGHT_TERMINAL = preload("res://presentation/cabin/aeon_terminal.gd")
 const SCREEN_DEVICE = preload("res://presentation/cabin/screen_device.gd")
 const DESK_DEVICES = preload("res://presentation/cabin/desk_devices.gd")
@@ -16,6 +18,7 @@ const SCREEN_DESK_INSET := 0.18
 const LOOK_SOFT := Vector2(0.488692,0.279253) # 28 / 16 degrees.
 const LOOK_HARD := Vector2(0.802851,0.523599) # 46 / 30 degrees.
 const LOOK_SENSITIVITY := 0.002
+const GESTURE_PAN_PIXELS := 32.0
 var table_materials: Array[Material] = []
 var camera: Camera3D
 var shell: Node3D
@@ -39,6 +42,7 @@ var feeds: Array[SubViewport] = []
 var sources: Array[Node] = []
 var source: Node
 var channel := 0
+var game_size := GAME_SIZE
 var focused := false
 var transitioning := false
 var powered := true
@@ -48,6 +52,7 @@ var crt: ShaderMaterial
 var empty_text: ImageTexture
 var glass: ShaderMaterial
 var last_pointer := Vector2.ZERO
+var pointer_inside := false
 var fps_display: Label
 var hud: Label
 var tween: Tween
@@ -59,6 +64,22 @@ var security_camera: Node3D
 var camera_led: MeshInstance3D
 var devices: Node3D
 var notice := ""
+var centre_query_pose := Transform3D.IDENTITY
+var centre_query_device_pose: Array = []
+var centre_query_valid := false
+var crt_input_key: Array = []
+var fog_input_revision := -1
+var runtime_log: FileAccess
+var runtime_log_elapsed := 0.0
+var runtime_frame_max := 0.0
+var runtime_frame_sum := 0.0
+var runtime_frame_count := 0
+var runtime_previous_tick := 0
+var runtime_frame_samples := PackedFloat32Array()
+var runtime_cpu_samples: Array = []
+var runtime_render_views: Array = []
+var runtime_render_samples: Array = []
+var runtime_phase_profile := false
 
 func _ready():
  ThemeDB.fallback_font = preload("res://assets/NotoSansSC-Regular.ttf")
@@ -68,17 +89,28 @@ func _ready():
  build_display()
  devices = DESK_DEVICES.new()
  devices.position.z = -SCREEN_DESK_INSET
+ devices.clock_support_y = screens[1].position.y+screens[1].housing_bounds.end.y*screens[1].scale.y
  add_child(devices)
  devices.sleep_requested.connect(func():
   notice = "睡觉按键已触发；世界时间与睡觉流程尚未接入"
   refresh_hud())
  build_ui()
+ get_window().size_changed.connect(apply_render_budget)
  switch_channel(0)
  configure_window()
  get_window().focus_exited.connect(on_window_focus_exited)
  get_window().focus_entered.connect(restore_mouse_mode)
  refresh_hud()
  restore_mouse_mode()
+ runtime_phase_profile=OS.get_cmdline_user_args().has("--runtime-phases")
+ for argument in OS.get_cmdline_user_args():
+  if argument.begins_with("--runtime-log="):
+   runtime_log = FileAccess.open(argument.trim_prefix("--runtime-log="),FileAccess.WRITE)
+   if runtime_log:
+    runtime_log.store_line("elapsed_s,frame_mean_ms,frame_max_ms,engine_fps,channel,focused,started,paused,world_s,actors,fine,planning,discarded_s,window_w,window_h,render_scale,frame_steps,unpaused_wall_s,simulated_s,combatants,rounds,alive,visible_cells,explored_cells,speed,frame_samples_ms,cpu_samples_ms,render_samples_ms")
+    if runtime_phase_profile:
+     runtime_render_views=[get_viewport(),crt_view,source.view,source.object_outline.mask_view,source.object_outline.output,source.compose]
+     for viewport: Viewport in runtime_render_views:RenderingServer.viewport_set_measure_render_time(viewport.get_viewport_rid(),true)
 
 func configure_window():
  var win := get_window()
@@ -88,6 +120,14 @@ func configure_window():
  win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
  win.size = Vector2i(1440,810)
  win.min_size = Vector2i(960,540)
+ apply_render_budget()
+
+func apply_render_budget():
+ # SIZE is the 2K output budget. Larger windows upscale the cabin's 3D
+ # image; the 2D layout and input coordinates keep their existing scale.
+ var pixels := Vector2(get_window().size).max(Vector2.ONE)
+ get_window().scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+ get_window().scaling_3d_scale = minf(1.0,minf(float(SIZE.x)/pixels.x,float(SIZE.y)/pixels.y))
 
 func build_room():
  var env := WorldEnvironment.new()
@@ -147,7 +187,7 @@ func build_cabin_lighting():
  reflection_probe.max_distance = 4.0
  reflection_probe.cull_mask = 1
  reflection_probe.enable_shadows = true
- reflection_probe.update_mode = ReflectionProbe.UPDATE_ALWAYS
+ reflection_probe.update_mode = ReflectionProbe.UPDATE_ONCE
  add_child(reflection_probe)
 
 func build_crt():
@@ -161,13 +201,13 @@ func build_crt():
  picture.size = GAME_SIZE
  picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
  crt = ShaderMaterial.new()
- crt.shader = preload("res://presentation/maintenance/crt.gdshader")
+ crt.shader = preload("res://presentation/rendering/crt.gdshader")
  # Material getters only return explicit overrides; initialize from the shared shader defaults.
  for parameter in crt.shader.get_shader_uniform_list():
   var value: Variant = RenderingServer.shader_get_parameter_default(crt.shader.get_rid(),parameter.name)
   if value != null: crt.set_shader_parameter(parameter.name,value)
  crt.set_shader_parameter("resolution",Vector2(GAME_SIZE))
- crt.set_shader_parameter("signal_resolution",Vector2(720,540))
+ crt.set_shader_parameter("signal_resolution",Vector2(864,540))
  crt.set_shader_parameter("warp_amount",0.0)
  picture.material = crt
  crt_view.add_child(picture)
@@ -181,22 +221,80 @@ func _process(_delta: float):
  update_observation(minf(_delta,0.05))
  if not is_instance_valid(source) or not crt: return
  # Use simulation time, so the existing pause also freezes CRT interference.
- crt.set_shader_parameter("elapsed_time", source.clock_time if channel == 0 else source.simulation_time)
+ var elapsed: float = source.clock_time if channel == 0 else source.simulation_time
+ var revision: int = int(source.get("fog_revision")) if channel == 0 and source.get("fog_revision") != null else -1
+ var picture_revision: int = int(source.get("picture_revision")) if channel==0 and source.get("picture_revision") != null else 0
+ var inputs := [source.get_instance_id(),elapsed,revision,picture_revision,crt_enabled,game_size]
+ if inputs != crt_input_key:
+  crt_input_key = inputs
+  crt.set_shader_parameter("elapsed_time", elapsed)
+  if revision != fog_input_revision:
+   fog_input_revision = revision
+   var parameters: Dictionary = source.crt_fog_parameters() if channel==0 and source.has_method("crt_fog_parameters") else {"enabled":false}
+   crt.set_shader_parameter("fog_enabled",parameters.enabled)
+   if parameters.enabled:
+    for key in ["texture","bounds","view_origin","view_axis_x","view_axis_y","map_rect","display_size"]:
+     crt.set_shader_parameter("fog_"+key,parameters[key])
+  crt_view.render_target_update_mode = SubViewport.UPDATE_ONCE
+ record_runtime(_delta)
+
+func record_runtime(delta: float):
+ if runtime_log == null: return
+ var now := Time.get_ticks_usec()
+ if runtime_previous_tick != 0: delta=float(now-runtime_previous_tick)/1000000.0
+ runtime_previous_tick=now
+ runtime_log_elapsed += delta
+ runtime_frame_sum += delta
+ runtime_frame_max = maxf(runtime_frame_max,delta)
+ runtime_frame_count += 1
+ runtime_frame_samples.append(delta*1000.0)
+ # Prior completed display frame: field, simulation, presentation, UI,
+ # RenderingServer setup and the engine process monitor (all milliseconds).
+ if runtime_phase_profile and channel==0 and source.get("started")==true:
+  var cpu_values: Array=[source.frame_cpu_usec*.001,source.simulation_cpu_usec*.001,source.presentation_cpu_usec*.001,source.ui_cpu_usec*.001,RenderingServer.get_frame_setup_time_cpu(),Performance.get_monitor(Performance.TIME_PROCESS)*1000.0]
+  for usec: int in source.simulation.cpu_phase_usec:cpu_values.append(usec*.001)
+  runtime_cpu_samples.append(cpu_values)
+  var render_times: Array=[]
+  for viewport: Viewport in runtime_render_views:
+   render_times.append(RenderingServer.viewport_get_measured_render_time_cpu(viewport.get_viewport_rid()))
+   render_times.append(RenderingServer.viewport_get_measured_render_time_gpu(viewport.get_viewport_rid()))
+  runtime_render_samples.append(render_times)
+ if runtime_frame_sum < 1.0: return
+ var w: SCWorld = source.simulation if channel==0 and source.get("started")==true else null
+ var fine: int = w.active_detail_count if w else 0
+ var planning := 0
+ if w: planning = w.planner.pending_request_count()
+ var living := 0
+ if w:
+  for a in w.actors:
+   if a.alive: living+=1
+ runtime_log.store_csv_line(PackedStringArray([
+  str(runtime_log_elapsed),str(runtime_frame_sum*1000.0/runtime_frame_count),str(runtime_frame_max*1000.0),str(Engine.get_frames_per_second()),str(channel),str(focused),str(w!=null),str(w.paused if w else true),str(w.time if w else 0.0),str(w.actors.size() if w else 0),str(fine),str(planning),str(w.discarded_time if w else 0.0),str(get_window().size.x),str(get_window().size.y),str(get_window().scaling_3d_scale),str(w.frame_steps if w else 0),str(w.unpaused_wall_time if w else 0.0),str(w.simulated_duration if w else 0.0),str(w.active_combat_count if w else 0),str(w.stats.rounds if w else 0),str(living),str(w.perception.visible_cells.size() if w else 0),str(w.perception.explored.size() if w else 0),str(source.speed if channel==0 and w else 1.0),JSON.stringify(runtime_frame_samples),JSON.stringify(runtime_cpu_samples),JSON.stringify(runtime_render_samples)]))
+ runtime_log.flush()
+ runtime_frame_sum=0.0;runtime_frame_count=0;runtime_frame_max=0.0
+ runtime_frame_samples.clear()
+ runtime_cpu_samples.clear()
+ runtime_render_samples.clear()
 
 func build_display():
- for index in range(3):
+ screens.resize(3)
+ # The wide centre housing supplies the real hinge positions for both neighbours.
+ for index: int in [1,0,2]:
   var monitor = RIGHT_TERMINAL.new() if index==2 else SCREEN_DEVICE.new()
   add_child(monitor)
-  var at := Vector3(0,0.74,0.02-SCREEN_DESK_INSET)
+  var at := Vector3(0,0.7473526,0.02-SCREEN_DESK_INSET)
   if index==2:
    monitor.configure_terminal(Vector3(0,.7451026,-.16),screens[1].housing_bounds.size.y*screens[1].scale.y*.8)
+  elif index==1:
+   monitor.configure(at,0.0,1.35,WIDE_MONITOR,"Wide_CRT_Glass")
+   monitor.focus_margin = 1.10
   else:monitor.configure(at,0.0,1.35)
   if index != 1:
    # Join the measured front housing edges, then aim each side glass towards the seated eye.
    var left := index == 0
-   var hinge_x := -0.201708734 if left else 0.198039740
+   var hinge_x: float = screens[1].housing_bounds.position.x if left else screens[1].housing_bounds.end.x
    var edge_x := 0.198039740 if left else -0.201708734
-   var hinge := Vector3(hinge_x*1.35,0.74,0.02-SCREEN_DESK_INSET+0.121902674*1.35)
+   var hinge := Vector3(hinge_x*1.35,at.y,0.02-SCREEN_DESK_INSET+0.121902674*1.35)
    var edge: Vector3 = Vector3(edge_x,0,0.121902674)*1.35 if left else Vector3(monitor.housing_bounds.position.x,0,monitor.housing_bounds.end.z)*monitor.scale.x
    for attempt in range(12):
     monitor.position = hinge-monitor.basis.orthonormalized()*edge
@@ -204,8 +302,8 @@ func build_display():
     monitor.rotation.y = atan2(direction.x,direction.z)
    monitor.position = hinge-monitor.basis.orthonormalized()*edge
    if not left:monitor.position.y=.7473526-monitor.housing_bounds.position.y*monitor.scale.y
-  if monitor.uses_crt:monitor.glass.set_shader_parameter("live_picture",crt_view.get_texture())
-  screens.append(monitor)
+  if monitor.uses_crt:monitor.set_picture(crt_view.get_texture(),game_size)
+  screens[index] = monitor
  select_screen(1)
  fit_desktop_view()
  security_camera = SECURITY_CAMERA.instantiate()
@@ -296,6 +394,21 @@ func select_screen(index: int):
  var monitor = screens[index]
  glass = monitor.glass
  powered = monitor.powered
+ configure_signal(GAME_SIZE if index==1 else SIDE_GAME_SIZE)
+
+func configure_signal(size: Vector2i):
+ if game_size != size:
+  game_size = size
+  crt_view.size = size
+  crt_view.get_child(0).size = size
+  crt.set_shader_parameter("resolution",Vector2(size))
+  crt.set_shader_parameter("signal_resolution",Vector2(roundf(540.0*size.x/size.y),540))
+  for i in range(feeds.size()):
+   if is_instance_valid(feeds[i]):
+    feeds[i].size = size
+    sources[i].set_display_size(size)
+ for monitor in screens:
+  if is_instance_valid(monitor) and monitor.uses_crt:monitor.set_picture(crt_view.get_texture(),game_size)
 
 func focus_screen(index: int):
  if transitioning: return
@@ -347,14 +460,15 @@ func switch_channel(index: int):
   sources.append(null)
  if feeds[index] == null:
   var viewport := SubViewport.new()
-  viewport.size = GAME_SIZE
+  viewport.size = game_size
   viewport.own_world_3d = true
   viewport.disable_3d = index==0
   viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED if index==0 else SubViewport.UPDATE_ALWAYS
   viewport.handle_input_locally = true
   viewport.gui_disable_input = false
   add_child(viewport)
-  var scene: Node = MAINTENANCE.new() if index == 0 else RANGE.new()
+  var scene: Node = FIELD.instantiate() if index == 0 else RANGE.new()
+  if index==0:scene.picture_changed.connect(bind_scene_picture)
   if scene is Control: scene.size = Vector2(viewport.size)
   var previous_window_size := get_window().size
   viewport.add_child(scene)
@@ -369,20 +483,35 @@ func switch_channel(index: int):
  feed.render_target_update_mode = SubViewport.UPDATE_DISABLED if index==0 else SubViewport.UPDATE_ALWAYS
  if index==0:
   source.set_render_live(source.input_active)
+ bind_scene_picture()
+ crt.set_shader_parameter("enabled",crt_enabled)
+ for monitor in screens:
+  if monitor.uses_crt:monitor.set_picture(crt_view.get_texture(),game_size)
+ refresh_hud()
+
+func bind_scene_picture():
+ crt_input_key.clear()
+ fog_input_revision = -2
+ crt_view.render_target_update_mode = SubViewport.UPDATE_ONCE
  if channel==0:
   crt.set_shader_parameter("scene_texture",source.object_outline.output.get_texture())
   crt.set_shader_parameter("text_texture",source.compose.get_texture())
  else:
   crt.set_shader_parameter("scene_texture",feed.get_texture())
   crt.set_shader_parameter("text_texture",empty_text)
- crt.set_shader_parameter("enabled",crt_enabled)
- for monitor in screens:
-  if monitor.uses_crt:monitor.glass.set_shader_parameter("live_picture",crt_view.get_texture())
- refresh_hud()
+ refresh_reflection()
+
+func refresh_reflection():
+ # Reapplying the mode invalidates the probe through RenderingServer. Capture
+ # changed device light/content once, then reuse it while the cabin is stable.
+ reflection_probe.update_mode = ReflectionProbe.UPDATE_ONCE
 
 func refresh_hud():
  if not hud: return
- hud.text = "鼠标转头 · 左键聚焦视野中心设备 · 转头过度会回弹\nEsc 返回观察 / 释放鼠标 · F1 左 F2 中 F3 终端 · 1 房间／射击预览 · 2 左／中 CRT · F8 当前屏电源 · F9 隐藏提示"
+ if focused and focused_device.is_empty() and screens[active_screen].uses_crt:
+  hud.text = ""
+  return
+ hud.text = "鼠标转头 · 左键聚焦视野中心设备 · 转头过度会回弹\nEsc 返回观察 / 释放鼠标 · F1 左 F2 中 F3 终端 · 1 现场／射击预览 · 2 CRT · F8 电源 · F9 隐藏提示"
  if devices: hud.text += "\n世界时钟未接入（--:--）"
  if focused_device=="phone":hud.text += "\n数字键输入 · Enter 呼叫／接听 · Backspace 清除／拒接 · End 挂断 · I 测试来电"
  if focused and focused_device.is_empty() and not screens[active_screen].uses_crt:hud.text += "\n左键拖动下方四个旋钮 · 滚轮微调"
@@ -394,11 +523,14 @@ func release_controls():
  for monitor in screens:monitor.release_controls()
  if not is_instance_valid(source): return
  if source.has_method("set_trigger"): source.set_trigger(false,false)
+ if source.has_method("cancel_interaction"):source.cancel_interaction()
  if is_instance_valid(feed):
   var up := InputEventMouseButton.new()
   up.button_index = MOUSE_BUTTON_LEFT
   up.pressed = false
   feed.push_input(up,true)
+  if pointer_inside: feed.notify_mouse_exited()
+  pointer_inside = false
 
 func set_focus(value: bool):
  if transitioning or value == focused: return
@@ -457,6 +589,7 @@ func set_power(value: bool):
  screens[active_screen].set_power(value)
  powered = value
  source.input_active = focused and powered and focused_device.is_empty() and screens[active_screen].uses_crt
+ refresh_reflection()
  refresh_hud()
 
 func glass_intersection(point: Vector2) -> Variant:
@@ -470,7 +603,7 @@ func game_point(point: Vector2) -> Vector2:
  if uv.x < 0 or uv.x > 1 or uv.y < 0 or uv.y > 1: return Vector2(-1,-1)
  if crt_enabled and screens[active_screen].uses_crt: uv = crt_source_uv(uv)
  if uv.x < 0 or uv.x > 1 or uv.y < 0 or uv.y > 1: return Vector2(-1,-1)
- return uv*Vector2(GAME_SIZE)
+ return uv*Vector2(game_size)
 
 func crt_source_uv(uv: Vector2) -> Vector2:
  # Match the shared shader's geometric warp and dynamic horizontal deflection.
@@ -491,27 +624,58 @@ func crt_source_uv(uv: Vector2) -> Vector2:
  pos.x += (interference+line*2.0)/signal_size.x
  return pos
 
+func source_delta_at(point: Vector2, delta: Vector2, mapped: Vector2) -> Vector2:
+ # Gesture scroll units have no absolute endpoint. Use the local derivative
+ # of the same curved-glass/CRT mapping as pointer input, including near edges.
+ var result := Vector2.ZERO
+ for axis in range(2):
+  var direction := Vector2.RIGHT if axis==0 else Vector2.DOWN
+  var next := game_point(point+direction)
+  var offset: Vector2
+  if next.x>=0: offset=next-mapped
+  else:
+   var previous := game_point(point-direction)
+   if previous.x<0: return Vector2.ZERO
+   offset=mapped-previous
+  result+=offset*delta[axis]
+ return result
+
 func forward_to_screen(event: InputEvent):
  var forwarded := event.duplicate() as InputEvent
- if event is InputEventMouse:
+ if event is InputEventMouse or event is InputEventGesture:
   var mapped := game_point(event.position)
   if mapped.x < 0:
-   # Clear hover and release the trigger even if release happens on the bezel.
+   # Cancel an unfinished map gesture before delivering its release. Otherwise
+   # a right-button release at last_pointer can submit an unintended order.
+   if source.has_method("cancel_interaction"):source.cancel_interaction()
+   var leave := InputEventMouseMotion.new()
+   leave.position = Vector2(-10000,-10000)
+   leave.global_position = leave.position
+   feed.push_input(leave,true)
+   if pointer_inside:
+    feed.notify_mouse_exited()
+    pointer_inside = false
+   # Release GUI/weapon button state even when the pointer ends on the bezel.
    if event is InputEventMouseButton and not event.pressed:
-    forwarded.position = last_pointer
-    forwarded.global_position = last_pointer
+    forwarded.position = leave.position
+    forwarded.global_position = leave.position
     feed.push_input(forwarded,true)
-   elif event is InputEventMouseMotion:
-    var leave := InputEventMouseMotion.new()
-    leave.position = Vector2(-10000,-10000)
-    leave.global_position = leave.position
-    feed.push_input(leave,true)
    return
+  if not pointer_inside:
+   # A glass-texture viewport has no SubViewportContainer to send this signal.
+   # Godot requires it before GUI mouse events forwarded through push_input().
+   feed.notify_mouse_entered()
+   pointer_inside = true
   forwarded.position = mapped
-  forwarded.global_position = mapped
+  if forwarded is InputEventMouse:forwarded.global_position = mapped
   if event is InputEventMouseMotion:
-   forwarded.relative = mapped-last_pointer
+   var previous := game_point(event.position-event.relative)
+   forwarded.relative = mapped-previous if previous.x>=0 else source_delta_at(event.position,event.relative,mapped)
    forwarded.screen_relative = forwarded.relative
+  elif event is InputEventPanGesture:
+   # Standard GUI keeps native scroll units. Only the map consumes the source
+   # pixel displacement, so a ScrollContainer does not inherit map pan gain.
+   forwarded.set_meta("map_pan_pixels",source_delta_at(event.position,event.delta*GESTURE_PAN_PIXELS,mapped))
   last_pointer = mapped
  feed.push_input(forwarded,true)
 
@@ -570,6 +734,16 @@ func update_observation(delta: float):
   if strained: sight.text += "\n转头受限"
 
 func centre_device() -> Dictionary:
+ var poses: Array = [camera.get_viewport().get_visible_rect(),camera.fov,camera.size]
+ for screen in screens: poses.append(screen.global_transform)
+ if devices:
+  for kind in devices.models:
+   for mesh in devices.model_meshes(kind): poses.append(mesh.global_transform)
+ if centre_query_valid and camera.global_transform==centre_query_pose and poses==centre_query_device_pose:
+  return centre_target
+ centre_query_valid=true
+ centre_query_pose=camera.global_transform
+ centre_query_device_pose=poses
  var point := camera.get_viewport().get_visible_rect().get_center()
  var result := {}
  var distance := INF
@@ -582,13 +756,14 @@ func centre_device() -> Dictionary:
     result = {"kind":"screen","index":index,"label":["左显示器","中央显示器","AEON 终端"][index]}
  if devices:
   for kind in devices.models:
-   for mesh in devices.models[kind].node.find_children("*","MeshInstance3D",true,false):
+   for mesh in devices.model_meshes(kind):
     var hit: Variant = devices.mesh_hit(camera,point,mesh)
     if hit != null:
      var d: float = camera.global_position.distance_squared_to(hit)
      if d < distance:
       distance = d
       result = {"kind":kind,"label":devices.label_for(kind),"focusable":devices.focusable(kind)}
+ centre_target=result
  return result
 
 func focus_centre_device():
@@ -608,6 +783,13 @@ func _input(event: InputEvent):
   forward_to_screen(event)
   get_viewport().set_input_as_handled()
   return
+ if focused and focused_device.is_empty() and screens[active_screen].uses_crt and channel==0 and source.started and event is InputEventKey:
+  # During field command, number/group keys belong to the squad rather than
+  # cabin preview switching. Return to observation to use physical-device keys.
+  if event.keycode in [KEY_1,KEY_2,KEY_3,KEY_4,KEY_F1,KEY_F2]:
+   forward_to_screen(event);get_viewport().set_input_as_handled();return
+  if event.keycode==KEY_ESCAPE and event.pressed and source.cancel_interaction():
+   get_viewport().set_input_as_handled();return
  if event is InputEventKey and event.pressed and not event.echo:
   match event.keycode:
    KEY_F1, KEY_F2, KEY_F3:
@@ -639,6 +821,7 @@ func _input(event: InputEvent):
     if screens[active_screen].uses_crt:
      crt_enabled = not crt_enabled
      crt.set_shader_parameter("enabled",crt_enabled)
+     refresh_reflection()
     get_viewport().set_input_as_handled()
     return
    KEY_F8:

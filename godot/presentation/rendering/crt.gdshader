@@ -20,6 +20,33 @@ uniform float interference_amount = 0.02;
 uniform float roll_line_amount = 0.035;
 uniform float roll_speed = 0.65;
 uniform float aberration_pixels = 1.5;
+uniform bool fog_enabled = false;
+uniform sampler2D fog_texture : filter_nearest, repeat_disable;
+uniform vec4 fog_bounds = vec4(0.0,0.0,500.0,500.0);
+uniform vec2 fog_view_origin = vec2(0.0);
+uniform vec2 fog_view_axis_x = vec2(1.0,0.0);
+uniform vec2 fog_view_axis_y = vec2(0.0,1.0);
+uniform vec4 fog_map_rect = vec4(0.0);
+uniform vec2 fog_display_size = vec2(2304.0,1440.0);
+
+float known_map(vec2 uv) {
+ vec2 pixel = uv*fog_display_size;
+ if (!fog_enabled || pixel.x < fog_map_rect.x || pixel.y < fog_map_rect.y || pixel.x >= fog_map_rect.x+fog_map_rect.z || pixel.y >= fog_map_rect.y+fog_map_rect.w) return 1.0;
+ vec2 point = fog_view_origin+uv.x*fog_view_axis_x+uv.y*fog_view_axis_y;
+ vec2 map_uv = (point-fog_bounds.xy)/fog_bounds.zw;
+ if (any(lessThan(map_uv,vec2(0.0))) || any(greaterThanEqual(map_uv,vec2(1.0)))) return 0.0;
+ return step(0.5,texture(fog_texture,map_uv).g);
+}
+
+float legal_ui_gate(vec2 uv,float known) {
+ if(known>0.5) return 1.0;
+ // Only intentionally unmasked UI has source texels in unknown terrain.
+ // Check that texel before chromatic/linear sampling so a knowledge-clipped
+ // route or world label cannot acquire a coloured fringe across the fog edge.
+ vec2 dimensions=vec2(textureSize(text_texture,0));
+ vec2 core=(clamp(floor(uv*dimensions),vec2(0.0),dimensions-1.0)+0.5)/dimensions;
+ return (1.0-known_map(core))*step(0.001,textureLod(text_texture,core,0.0).a);
+}
 
 float signal_random(vec2 uv) {
  return fract(cos(uv.x*83.4827+uv.y*92.2842)*43758.5453123);
@@ -76,7 +103,8 @@ vec3 grille(vec2 pixel) {
 void fragment() {
  if(!enabled) {
   vec4 text=texture(text_texture,UV);
-  COLOR=vec4(mix(texture(scene_texture,UV).rgb,text.rgb,text.a),1.0);
+  float known=known_map(UV);
+  COLOR=vec4(mix(texture(scene_texture,UV).rgb*known,text.rgb,text.a*legal_ui_gate(UV,known)),1.0);
  } else {
   vec2 pos=warp(UV);
   float frame=floor(elapsed_time*30.0);
@@ -89,13 +117,20 @@ void fragment() {
   vec3 c=vec3(tri(pos-vec2(shift,0.0)).r,
               tri(pos+vec2(0.0,shift*0.25)).g,
               tri(pos+vec2(shift,0.0)).b);
+  // Clear reconstructed terrain before legal UI is composed. Knowledge-bound
+  // map overlays are clipped by their own material; controlled-unit badges
+  // remain readable even when explored terrain occupies only a few pixels.
+  float known=known_map(pos);
+  c*=known;
   // Readable pixel-font layer shares curvature/chromatic effects, but not 360-line scene sampling.
   vec4 text_r=texture(text_texture,pos-vec2(shift,0.0));
   vec4 text_g=texture(text_texture,pos+vec2(0.0,shift*0.25));
   vec4 text_b=texture(text_texture,pos+vec2(shift,0.0));
+  float ui_gate=legal_ui_gate(pos,known);
+  text_r.a*=ui_gate;text_g.a*=ui_gate;text_b.a*=ui_gate;
   c=vec3(mix(c.r,text_r.r,text_r.a),mix(c.g,text_g.g,text_g.a),mix(c.b,text_b.b,text_b.a));
   float noise=(signal_random(floor(pos*signal_resolution)+vec2(frame,frame*0.37))-0.5)*noise_amount*(0.6+strength);
-  c+=vec3(noise);
+  c+=vec3(noise*known);
   c*=1.0+line*3.0;
   c*=grille(UV*resolution);
   vec2 v=clamp(pos,vec2(0.0),vec2(1.0));

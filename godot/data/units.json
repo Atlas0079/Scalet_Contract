@@ -48,5 +48,20 @@
       "psionics": 0
     },
     "sources": []
+  },
+  "civilian": {
+    "character": "human",
+    "weapon": "rifle",
+    "reserve_ammo": 0,
+    "items": {},
+    "skills": {
+      "shooting": 0,
+      "medicine": 0,
+      "repair": 0,
+      "hacking": 0,
+      "sia_control": 0,
+      "psionics": 0
+    },
+    "sources": []
   }
 }

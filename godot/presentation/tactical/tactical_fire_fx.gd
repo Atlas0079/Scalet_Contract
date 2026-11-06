@@ -51,9 +51,7 @@ class View extends Node2D:
 			else: effects.draw_air(self, origin, pixels_per_cell)
 
 func _init(weapon: Dictionary):
-	simulation=SCWorld.new("range",true)
 	configure(weapon)
-	build_range()
 
 func configure(weapon: Dictionary):
 	weapon_state = weapon
@@ -67,22 +65,15 @@ func configure(weapon: Dictionary):
 	tracer_length = tracer_settings.length_m
 	tracer_brightness = tracer_settings.brightness
 
-func build_range():
-	targets.clear()
-	obstacles.clear()
-	# Standalone visual checks still use the current range scene data.
-	for spec in SCData.scenes.range.entities:
-		if spec.get("kind","")=="target":
-			targets.append({"id":spec.id,"label":spec.label,"position":SCCombat.pair(spec.position_m),"radius":spec.radius_m,"height":spec.height_m,"hits":0})
-		else:
-			var size := SCCombat.pair(spec.footprint_m)
-			obstacles.append({"id":spec.id,"label":spec.label,"kind":"wall" if spec.height_m>2 else "cover","rect":Rect2(SCCombat.pair(spec.position_m)-size*.5,size),"height":spec.height_m})
-
 func bind_world(value: SCWorld, primary: bool):
 	simulation=value
 	authoritative=primary
-	for entry in targets:
-		entry["entity"]=simulation.entities[entry.id]
+	targets.clear();obstacles.clear()
+	# Scene metadata supplies targets for the independent shooting tool only.
+	# Field effects share the real world without retaining laboratory targets.
+	for spec in value.scene_definition.entities:
+		if spec.get("kind","")!="target":continue
+		targets.append({"id":spec.id,"label":spec.label,"position":SCCombat.pair(spec.position_m),"radius":spec.radius_m,"height":spec.height_m,"hits":0,"entity":value.entities[spec.id]})
 
 
 func target_by_id(id: String) -> Dictionary:

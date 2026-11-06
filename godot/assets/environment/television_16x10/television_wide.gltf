@@ -1,0 +1,369 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "Project-authored 16:10 derivative of Poly Haven Television 02"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Central wide CRT",
+      "nodes": [
+        0,
+        1,
+        2
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Wide_CRT_Housing",
+      "mesh": 0
+    },
+    {
+      "name": "Wide_CRT_Glass",
+      "mesh": 1
+    },
+    {
+      "name": "Wide_CRT_Louvres",
+      "mesh": 2
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Corner-preserving wide housing and original mechanical parts",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Continuous convex 16 by 10 glass",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 1
+        }
+      ]
+    },
+    {
+      "name": "Recessed lower ventilation insert",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 8,
+            "NORMAL": 9,
+            "TEXCOORD_0": 10
+          },
+          "indices": 11,
+          "material": 2
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "television_02",
+      "normalTexture": {
+        "index": 0
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      }
+    },
+    {
+      "name": "Live_CRT_Glass",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.01,
+          0.02,
+          0.02,
+          1
+        ],
+        "roughnessFactor": 0.25
+      }
+    },
+    {
+      "name": "Recessed graphite louvres",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.023,
+          0.027,
+          0.029,
+          1
+        ],
+        "roughnessFactor": 0.66,
+        "metallicFactor": 0.25
+      }
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/jpeg",
+      "name": "television_02_nor_gl",
+      "uri": "../television_02/textures/television_02_nor_gl_2k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "television_02_diff",
+      "uri": "../television_02/textures/television_02_diff_2k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "television_02_metal-television_02_rough",
+      "uri": "../television_02/textures/television_02_arm_2k.jpg"
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 2119,
+      "type": "VEC3",
+      "min": [
+        -0.2331973910331726,
+        2.97835756057907e-09,
+        -0.22829124331474304
+      ],
+      "max": [
+        0.22952839732170105,
+        0.41141477227211,
+        0.12190267443656921
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 2119,
+      "type": "VEC3",
+      "min": [
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "max": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 2119,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5125,
+      "count": 5388,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 3185,
+      "type": "VEC3",
+      "min": [
+        -0.19159352779388428,
+        0.14021044969558716,
+        0.0900832787156105
+      ],
+      "max": [
+        0.1879245638847351,
+        0.3774092495441437,
+        0.12190267443656921
+      ]
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 3185,
+      "type": "VEC3",
+      "min": [
+        -0.29313480854034424,
+        -0.2777140140533447,
+        0.9559686779975891
+      ],
+      "max": [
+        0.293135404586792,
+        0.27771440148353577,
+        1.0
+      ]
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 3185,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5125,
+      "count": 18432,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 576,
+      "type": "VEC3",
+      "min": [
+        0.016788657754659653,
+        0.03897000104188919,
+        0.10480000078678131
+      ],
+      "max": [
+        0.21496865153312683,
+        0.07263000309467316,
+        0.11110000312328339
+      ]
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5126,
+      "count": 576,
+      "type": "VEC3",
+      "min": [
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "max": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5126,
+      "count": 576,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 11,
+      "componentType": 5125,
+      "count": 864,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 25428,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 25428,
+      "byteLength": 25428,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 50856,
+      "byteLength": 16952,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 67808,
+      "byteLength": 21552,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 89360,
+      "byteLength": 38220,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 127580,
+      "byteLength": 38220,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 165800,
+      "byteLength": 25480,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 191280,
+      "byteLength": 73728,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 265008,
+      "byteLength": 6912,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 271920,
+      "byteLength": 6912,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 278832,
+      "byteLength": 4608,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 283440,
+      "byteLength": 3456,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "television_wide.bin",
+      "byteLength": 286896
+    }
+  ]
+}

@@ -8,15 +8,40 @@ var position: Vector2:
 	get: return actor.position if actor != null else _position
 	set(value):
 		if actor != null: actor.position = value
-		else: _position = value
+		elif _position != value:
+			_position = value
+			_geometry_changed()
 var _position := Vector2.ZERO
-var facing := 0.0
-var exists := true
+var facing := 0.0:
+	set(value):
+		if facing == value: return
+		facing = value
+		_geometry_changed()
+var exists := true:
+	set(value):
+		if exists==value: return
+		exists=value
+		_geometry_changed()
 var durability := 0.0
 var contents: Dictionary = {}
 var door: Dictionary = {}
 var hits := 0
 var ruined := false
+var _ray_revision := -1
+var _ray_position := Vector2.ZERO
+var _ray_facing := 0.0
+var _ray_door_progress := -1.0
+var _ray_parts: Array[Dictionary] = []
+var _ray_body := AABB()
+var _ray_bottom := 0.0
+var _ray_top := 0.0
+var _ray_height := -1.0
+
+func _geometry_changed():
+	_ray_revision=-1
+	var grid: SCGrid = space.get_ref() if space else null
+	if grid and actor==null:
+		grid.invalidate_entity(self,true)
 
 func _init(spec: Dictionary, character: SCActor = null):
 	definition = spec.duplicate(true)
@@ -37,7 +62,7 @@ func footprint() -> Rect2:
 
 func bottom() -> float:
 	var grid: SCGrid = space.get_ref() if space else null
-	var ground: float = grid.cells.get(SCData.cell_of(position),{}).get("ground_height_m",0.0) if grid else 0.0
+	var ground: float = grid.ground_at(SCData.cell_of(position)) if grid else 0.0
 	return ground+float(definition.get("bottom_m",0.0))
 
 func height() -> float:
@@ -81,6 +106,9 @@ func damage(amount: float):
 		if result.has(key): definition[key] = result[key]
 	exists = result.get("exists",true)
 	if not door.is_empty(): door.faulted = true
+	_ray_revision = -1
+	var grid: SCGrid=space.get_ref() if space else null
+	if grid: grid.invalidate_entity(self,true)
 
 
 # The broad footprint remains conservative for movement; rays use the actual solid parts.
@@ -88,35 +116,61 @@ func solid_parts() -> Array:
 	if not door.is_empty() or actor!=null: return []
 	return definition.get("structure",{}).get("parts",[])
 
+func _prepare_ray_geometry():
+	var at := position
+	var progress: float = door.get("progress",0.0)
+	var lower := bottom()
+	var body_height := height()
+	# Only this object's geometry invalidates its exact parts. Unrelated doors
+	# must not reconstruct every cached object along every ray.
+	if _ray_revision>=0 and _ray_position==at and _ray_facing==facing and _ray_door_progress==progress and _ray_bottom==lower and _ray_height==body_height:
+		return
+	_ray_revision=0
+	_ray_position=at
+	_ray_facing=facing
+	_ray_door_progress=progress
+	_ray_bottom=lower
+	_ray_height=body_height
+	_ray_top=_ray_bottom+body_height
+	_ray_body=collision_box()
+	_ray_body.position.x-=at.x
+	_ray_body.position.z-=at.y
+	_ray_parts.clear()
+	var size := footprint().size
+	for part in solid_parts():
+		var offset: Array=part.offset_m
+		var dimensions: Array=part.size_m
+		_ray_parts.append({
+			"box":AABB(Vector3(float(offset[0])-size.x*.5,_ray_bottom+float(offset[1]),float(offset[2])-size.y*.5),Vector3(dimensions[0],dimensions[1],dimensions[2])),
+			"part_id":part.id,"contact_key":definition.id+":"+part.id,
+			"blocks_sight":part.get("blocks_sight",false),"blocks_projectile":part.get("blocks_projectile",false),
+			"protection":float(part.protection)
+		})
+
 func ray_hit(start: Vector3, end: Vector3, kind := "projectile", ignored: Dictionary = {}) -> Dictionary:
 	if not blocks(kind): return {}
-	var parts = solid_parts()
-	if not parts.is_empty():
-		var a = Vector2(start.x-position.x,start.z-position.y).rotated(-facing)
-		var b = Vector2(end.x-position.x,end.z-position.y).rotated(-facing)
-		var size = footprint().size
-		var best: Dictionary = {}
-		for part in parts:
-			var key: String = definition.id+":"+part.id
-			if ignored.has(key) or not part.get("blocks_"+kind,false): continue
-			var offset: Array = part.offset_m
-			var dimensions: Array = part.size_m
-			var box = AABB(Vector3(float(offset[0])-size.x*.5,bottom()+float(offset[1]),float(offset[2])-size.y*.5),Vector3(dimensions[0],dimensions[1],dimensions[2]))
-			var fraction = SCCombat.box_hit_fraction(Vector3(a.x,start.y,a.y),Vector3(b.x,end.y,b.y),box)
-			if fraction>=0 and (best.is_empty() or fraction<best.fraction): best={"fraction":fraction,"part_id":part.id,"protection":float(part.protection),"contact_key":key}
-		return best
+	_prepare_ray_geometry()
+	if not _ray_parts.is_empty():
+		var a = Vector2(start.x-_ray_position.x,start.z-_ray_position.y).rotated(-facing)
+		var b = Vector2(end.x-_ray_position.x,end.z-_ray_position.y).rotated(-facing)
+		var origin := Vector3(a.x,start.y,a.y)
+		var finish := Vector3(b.x,end.y,b.y)
+		var best := INF
+		var hit_part: Dictionary = {}
+		for part in _ray_parts:
+			if ignored.has(part.contact_key) or not part["blocks_"+kind]: continue
+			var fraction := SCCombat.box_hit_fraction(origin,finish,part.box)
+			if fraction>=0 and fraction<best: best=fraction;hit_part=part
+		return {} if hit_part.is_empty() else {"fraction":best,"part_id":hit_part.part_id,"protection":hit_part.protection,"contact_key":hit_part.contact_key}
 	var key: String = definition.id+":body"
 	if ignored.has(key): return {}
 	var hit: float
 	if definition.get("shape","")=="cylinder":
-		hit=SCCombat.cylinder_hit_fraction(Vector2(start.x,start.z),Vector2(end.x,end.z),start.y,end.y,position,position,definition.radius_m,bottom(),bottom()+height())
+		hit=SCCombat.cylinder_hit_fraction(Vector2(start.x,start.z),Vector2(end.x,end.z),start.y,end.y,_ray_position,_ray_position,definition.radius_m,_ray_bottom,_ray_top)
 	else:
-		var a = Vector2(start.x-position.x,start.z-position.y).rotated(-facing)
-		var b = Vector2(end.x-position.x,end.z-position.y).rotated(-facing)
-		var box = collision_box()
-		box.position.x-=position.x
-		box.position.z-=position.y
-		hit=SCCombat.box_hit_fraction(Vector3(a.x,start.y,a.y),Vector3(b.x,end.y,b.y),box)
+		var a = Vector2(start.x-_ray_position.x,start.z-_ray_position.y).rotated(-facing)
+		var b = Vector2(end.x-_ray_position.x,end.z-_ray_position.y).rotated(-facing)
+		hit=SCCombat.box_hit_fraction(Vector3(a.x,start.y,a.y),Vector3(b.x,end.y,b.y),_ray_body)
 	return {} if hit<0 else {"fraction":hit,"part_id":"body","protection":float(definition.get("protection",1.0 if actor!=null and not actor.alive else INF)),"contact_key":key}
 
 func ray_fraction(start: Vector3, end: Vector3) -> float:
